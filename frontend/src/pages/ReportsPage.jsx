@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import POSNavbar from '../components/POSNavbar';
+import Navbar from '../components/Navbar';
 import axios from '../lib/axios';
 
 const ReportsPage = () => {
@@ -24,7 +24,7 @@ const ReportsPage = () => {
   if (!reportData) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <POSNavbar />
+        <Navbar />
         <div className="flex items-center justify-center h-96">
           <div className="text-gray-600 dark:text-gray-400">Loading...</div>
         </div>
@@ -40,12 +40,12 @@ const ReportsPage = () => {
   const paymentMethodsArray = Object.entries(reportData.paymentMethods).map(([method, data]) => ({
     method,
     amount: data.amount,
-    percentage: reportData.totalSales > 0 ? ((data.amount / reportData.totalSales) * 100).toFixed(0) : 0,
+    percentage: reportData.totalSales > 0 ? Math.round((data.amount / reportData.totalSales) * 100) : 0,
   }));
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <POSNavbar />
+      <Navbar />
 
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-8">
         <div className="flex items-center justify-between mb-8">
@@ -83,7 +83,7 @@ const ReportsPage = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Total Sales</p>
-                <p className="text-2xl font-bold text-green-600">₱{reportData.totalSales.toFixed(1)}</p>
+                <p className="text-2xl font-bold text-green-600">₱{reportData.totalSales.toFixed(2)}</p>
               </div>
             </div>
           </div>
@@ -135,24 +135,29 @@ const ReportsPage = () => {
           {/* Daily Sales Chart */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Daily Sales</h3>
-            <div className="h-64 flex items-end gap-2">
+            <div className="h-64 flex items-end gap-1 pb-4">
               {dailySalesArray.length > 0 ? (
                 dailySalesArray.map((day, index) => {
                   const maxSales = Math.max(...dailySalesArray.map(d => d.sales), 1);
                   const height = (day.sales / maxSales) * 100;
+                  const date = new Date(day.date);
+                  const dayOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()];
+                  const dayNum = date.getDate();
+                  const monthNum = date.getMonth() + 1;
                   return (
-                    <div key={index} className="flex-1 flex flex-col items-center">
-                      <div className="w-full bg-gray-600 dark:bg-gray-500 rounded-t hover:bg-gray-700 dark:hover:bg-gray-400 transition-all relative group" style={{ height: `${height}%`, minHeight: '4px' }}>
-                        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-900 dark:bg-gray-700 text-white dark:text-gray-200 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap">
-                          {day.date}<br />Sales: ₱{day.sales.toFixed(1)}
+                    <div key={index} className="flex-1 flex flex-col items-center h-full">
+                      <div className="w-full bg-blue-600 dark:bg-blue-500 rounded-t hover:bg-blue-700 dark:hover:bg-blue-400 transition-all relative group flex-shrink-0" style={{ height: `${Math.max(height, 5)}%`, minHeight: '6px' }}>
+                        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-900 dark:bg-gray-700 text-white dark:text-gray-200 text-xs px-3 py-2 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10 font-medium">
+                          {day.date}<br />₱{day.sales.toFixed(2)}
                         </div>
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">{new Date(day.date).getDate()}/{new Date(day.date).getMonth() + 1}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400 mt-2 font-semibold">{dayOfWeek}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-500">{monthNum}/{dayNum}</div>
                     </div>
                   );
                 })
               ) : (
-                <div className="w-full text-center text-gray-500 dark:text-gray-400">No data available</div>
+                <div className="w-full flex items-center justify-center h-full text-gray-500 dark:text-gray-400">No data available</div>
               )}
             </div>
           </div>
@@ -171,7 +176,7 @@ const ReportsPage = () => {
                       <span className="font-medium text-gray-700 dark:text-gray-300">{method.method}</span>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-gray-900 dark:text-white">₱{method.amount.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
+                      <p className="font-bold text-gray-900 dark:text-white">₱{method.amount.toFixed(2)}</p>
                       <p className="text-sm text-gray-500 dark:text-gray-400">{method.percentage}%</p>
                     </div>
                   </div>
@@ -204,7 +209,7 @@ const ReportsPage = () => {
                     <p className="text-sm text-gray-500 dark:text-gray-400">{product.quantity} sold</p>
                   </div>
                 </div>
-                <p className="font-bold text-gray-900 dark:text-white">₱{product.revenue.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
+                <p className="font-bold text-gray-900 dark:text-white">₱{product.revenue.toFixed(2)}</p>
               </div>
             ))}
           </div>

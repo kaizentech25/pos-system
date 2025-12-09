@@ -184,7 +184,7 @@ pos-system/
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── POSNavbar.jsx
+│   │   │   ├── Navbar.jsx
 │   │   │   ├── ProductCard.jsx
 │   │   │   └── PaymentModal.jsx
 │   │   ├── context/

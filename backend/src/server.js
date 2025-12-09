@@ -3,7 +3,6 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 
-import notesRoutes from './routes/notesRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import productRoutes from './routes/productRoutes.js';
 import transactionRoutes from './routes/transactionRoutes.js';
@@ -33,7 +32,6 @@ app.use(rateLimiter);
 //   next();
 // });
 
-app.use("/api/notes", notesRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/transactions", transactionRoutes);
