@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import POSNavbar from '../components/POSNavbar';
+import Navbar from '../components/Navbar';
 import ProductCard from '../components/ProductCard';
 import PaymentModal from '../components/PaymentModal';
 import { useAuth } from '../context/AuthContext';
@@ -71,7 +71,7 @@ const POSTerminalPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <POSNavbar />
+      <Navbar />
 
       <div className="max-w-7xl mx-auto p-4 md:p-6">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">POS Terminal</h1>

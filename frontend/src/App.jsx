@@ -1,6 +1,7 @@
 import { Route, Routes, Navigate } from "react-router";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
+import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import POSTerminalPage from "./pages/POSTerminalPage";
@@ -20,7 +21,7 @@ const ProtectedRoute = ({ children }) => {
   }
   
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/" replace />;
   }
   
   return children;
@@ -35,6 +36,7 @@ const AppRoutes = () => {
         path="/login" 
         element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} 
       />
+      <Route path="/" element={<HomePage />} />
       <Route
         path="/dashboard"
         element={
@@ -75,7 +77,6 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 };

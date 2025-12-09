@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import POSNavbar from '../components/POSNavbar';
+import Navbar from '../components/Navbar';
 import axios from '../lib/axios';
 
 const DashboardPage = () => {
@@ -26,7 +26,7 @@ const DashboardPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <POSNavbar />
+      <Navbar />
       
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-8">
         <div className="mb-8">
