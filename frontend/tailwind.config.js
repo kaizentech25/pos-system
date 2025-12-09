@@ -9,8 +9,10 @@ export default {
   theme: {
     extend: {},
   },
+  darkMode: ['selector', '[data-theme="dark"]'],
   plugins: [daisyui],
   daisyui: {
-    themes: ["forest"],
+    themes: ["light", "dark"],
+    darkTheme: "dark",
   },
 }
