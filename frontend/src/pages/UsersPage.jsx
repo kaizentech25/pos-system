@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
+import { Users, Edit, Trash2 } from 'lucide-react';
 import axios from '../lib/axios';
 
 const UsersPage = () => {
@@ -77,9 +78,9 @@ const UsersPage = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar />
 
-      <div className="max-w-7xl mx-auto px-4 md:px-6 py-8">
+      <div className="max-w-full mx-auto px-4 md:px-6 py-8">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Users</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white"><Users size={28} className="inline mr-2" /> Users</h1>
           <button
             onClick={() => {
               resetForm();
@@ -118,15 +119,15 @@ const UsersPage = () => {
                     <div className="flex items-center gap-4">
                       <button
                         onClick={() => handleEdit(user)}
-                        className="text-blue-600 hover:text-blue-800 font-medium"
+                        className="text-blue-600 hover:text-blue-500 font-medium"
                       >
-                        Edit
+                        <Edit className="w-5 h-5" />
                       </button>
                       <button
                         onClick={() => handleDelete(user._id)}
-                        className="text-red-600 hover:text-red-800 font-medium"
+                        className="text-red-600 hover:text-red-500 font-medium"
                       >
-                        Delete
+                        <Trash2 className="w-5 h-5" />
                       </button>
                     </div>
                   </td>

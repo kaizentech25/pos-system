@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
+import { ShoppingCart, Search, Edit, Trash2 } from 'lucide-react';
 import axios from '../lib/axios';
 
 const ProductsPage = () => {
@@ -95,9 +96,9 @@ const ProductsPage = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar />
 
-      <div className="max-w-7xl mx-auto px-4 md:px-6 py-8">
+      <div className="max-w-full mx-auto px-4 md:px-6 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Products & Inventory</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2"><ShoppingCart size={28} className="inline mr-2" /> Products & Inventory</h1>
           <p className="text-gray-600 dark:text-gray-400">Manage your inventory and product catalog</p>
         </div>
 
@@ -126,14 +127,7 @@ const ProductsPage = () => {
                   placeholder="Search products..."
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-600 focus:border-transparent"
                 />
-                <svg
-                  className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+                <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               </div>
               <select
                 value={category}
@@ -189,19 +183,15 @@ const ProductsPage = () => {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleEdit(product)}
-                          className="text-blue-600 hover:text-blue-800"
+                          className="text-blue-600 hover:text-blue-500"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
+                          <Edit className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => handleDelete(product._id)}
-                          className="text-red-600 hover:text-red-800"
+                          className="text-red-600 hover:text-red-500"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
+                          <Trash2 className="w-5 h-5" />
                         </button>
                       </div>
                     </td>
