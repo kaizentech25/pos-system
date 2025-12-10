@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
+import { FileBarChart, Download, DollarSign, ShoppingBag, TrendingUp, Trophy } from 'lucide-react';
+import { Banknote, QrCode, CreditCard } from 'lucide-react';
 import axios from '../lib/axios';
 
 const ReportsPage = () => {
@@ -47,10 +49,10 @@ const ReportsPage = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar />
 
-      <div className="max-w-7xl mx-auto px-4 md:px-6 py-8">
+      <div className="max-w-full mx-auto px-4 md:px-6 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Reports</h1>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2"><FileBarChart size={28} className="inline mr-2" /> Reports</h1>
             <p className="text-gray-600 dark:text-gray-400">Sales analytics and business insights</p>
           </div>
           <div className="flex gap-2">
@@ -64,9 +66,7 @@ const ReportsPage = () => {
               <option value="month">This Month</option>
             </select>
             <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
+              <Download className="w-4 h-4" />
               Export
             </button>
           </div>
@@ -77,9 +77,7 @@ const ReportsPage = () => {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
               </div>
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Total Sales</p>
@@ -91,9 +89,7 @@ const ReportsPage = () => {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
+                <ShoppingBag className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Transactions</p>
@@ -105,9 +101,7 @@ const ReportsPage = () => {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                </svg>
+                <TrendingUp className="w-6 h-6 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Avg Transaction</p>
@@ -119,9 +113,7 @@ const ReportsPage = () => {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
+                <Trophy className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
               </div>
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Top Category</p>
@@ -145,10 +137,15 @@ const ReportsPage = () => {
                   const dayNum = date.getDate();
                   const monthNum = date.getMonth() + 1;
                   return (
-                    <div key={index} className="flex-1 flex flex-col items-center h-full">
-                      <div className="w-full bg-blue-600 dark:bg-blue-500 rounded-t hover:bg-blue-700 dark:hover:bg-blue-400 transition-all relative group flex-shrink-0" style={{ height: `${Math.max(height, 5)}%`, minHeight: '6px' }}>
-                        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-900 dark:bg-gray-700 text-white dark:text-gray-200 text-xs px-3 py-2 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10 font-medium">
-                          {day.date}<br />₱{day.sales.toFixed(2)}
+                    <div key={index} className="flex-1 flex flex-col items-center h-full justify-end">
+                      <div className="relative w-full flex flex-col items-center justify-end h-full">
+                        <div
+                          className="bg-blue-500 dark:bg-blue-500 rounded-t hover:bg-blue-700 dark:hover:bg-blue-400 transition-all group flex-shrink-0 w-full"
+                          style={{ height: `${Math.max(height, 5)}%`, minHeight: '6px' }}
+                        >
+                          <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-gray-900 dark:bg-gray-700 text-white dark:text-gray-200 text-xs px-3 py-2 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10 font-medium">
+                            {day.date}<br />₱{day.sales.toFixed(2)}
+                          </div>
                         </div>
                       </div>
                       <div className="text-xs text-gray-600 dark:text-gray-400 mt-2 font-semibold">{dayOfWeek}</div>
@@ -170,9 +167,16 @@ const ReportsPage = () => {
                 <div key={index}>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded-full ${
-                        index === 0 ? 'bg-gray-600 dark:bg-gray-400' : index === 1 ? 'bg-gray-400 dark:bg-gray-500' : 'bg-gray-300 dark:bg-gray-600'
-                      }`}></div>
+                      {/* Icon for payment method */}
+                      {method.method.toLowerCase().includes('cash') && (
+                        <Banknote className="w-5 h-5 text-green-600 dark:text-green-400" />
+                      )}
+                      {method.method.toLowerCase().includes('qr') && (
+                        <QrCode className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      )}
+                      {method.method.toLowerCase().includes('card') && (
+                        <CreditCard className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                      )}
                       <span className="font-medium text-gray-700 dark:text-gray-300">{method.method}</span>
                     </div>
                     <div className="text-right">
