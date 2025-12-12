@@ -46,6 +46,35 @@ const productSchema = new mongoose.Schema(
       type: Number,
       default: 10,
     },
+    stockHistory: [
+      {
+        type: {
+          type: String,
+          enum: ['in', 'out', 'adjustment'],
+          required: true,
+        },
+        quantity: {
+          type: Number,
+          required: true,
+        },
+        previousStock: {
+          type: Number,
+          required: true,
+        },
+        newStock: {
+          type: Number,
+          required: true,
+        },
+        note: {
+          type: String,
+          default: '',
+        },
+        timestamp: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
   },
   {
     timestamps: true,
