@@ -7,7 +7,7 @@ export const createTransaction = async (req, res) => {
   session.startTransaction();
 
   try {
-    const { items, subtotal, discount, vat, total, paymentMethod, cashier, cashierName } = req.body;
+    const { items, subtotal, discount, vat, total, paymentMethod, cashier, cashierName, company_name } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ success: false, message: 'Transaction must have at least one item' });
@@ -40,9 +40,11 @@ export const createTransaction = async (req, res) => {
       discount: discount || 0,
       vat,
       total,
+      totalAmount: total,
       paymentMethod,
       cashier,
       cashierName,
+      company_name: company_name || 'Unknown',
     });
 
     await transaction.save({ session });
@@ -60,13 +62,17 @@ export const createTransaction = async (req, res) => {
 
 export const getAllTransactions = async (req, res) => {
   try {
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate, company_name } = req.query;
     let query = {};
 
     if (startDate || endDate) {
       query.createdAt = {};
       if (startDate) query.createdAt.$gte = new Date(startDate);
       if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
+
+    if (company_name) {
+      query.company_name = company_name;
     }
 
     const transactions = await Transaction.find(query)
@@ -101,21 +107,29 @@ export const getTransactionById = async (req, res) => {
 
 export const getDashboardStats = async (req, res) => {
   try {
+    const { company_name } = req.query;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const todayTransactions = await Transaction.find({
-      createdAt: { $gte: today },
-    });
+    const transactionQuery = { createdAt: { $gte: today } };
+    if (company_name) {
+      transactionQuery.company_name = company_name;
+    }
+
+    const todayTransactions = await Transaction.find(transactionQuery);
 
     const todaySales = todayTransactions.reduce((sum, t) => sum + t.total, 0);
     const transactionCount = todayTransactions.length;
 
-    const lowStockProducts = await Product.find({
-      $expr: { $lte: ['$stock', '$lowStockAlert'] },
-    });
+    const productQuery = { $expr: { $lte: ['$stock', '$lowStockAlert'] } };
+    if (company_name) {
+      productQuery.company_name = company_name;
+    }
 
-    const activeProducts = await Product.countDocuments();
+    const lowStockProducts = await Product.find(productQuery);
+
+    const activeProductsQuery = company_name ? { company_name } : {};
+    const activeProducts = await Product.countDocuments(activeProductsQuery);
 
     res.status(200).json({
       success: true,
@@ -134,7 +148,7 @@ export const getDashboardStats = async (req, res) => {
 
 export const getReports = async (req, res) => {
   try {
-    const { period = 'week' } = req.query;
+    const { period = 'week', company_name } = req.query;
     
     const today = new Date();
     let startDate = new Date();
@@ -153,9 +167,12 @@ export const getReports = async (req, res) => {
         startDate.setDate(today.getDate() - 7);
     }
 
-    const transactions = await Transaction.find({
-      createdAt: { $gte: startDate },
-    }).populate('items.product');
+    const query = { createdAt: { $gte: startDate } };
+    if (company_name) {
+      query.company_name = company_name;
+    }
+
+    const transactions = await Transaction.find(query).populate('items.product');
 
     // Calculate total sales
     const totalSales = transactions.reduce((sum, t) => sum + t.total, 0);

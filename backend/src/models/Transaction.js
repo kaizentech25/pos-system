@@ -25,6 +25,11 @@ const transactionItemSchema = new mongoose.Schema({
 
 const transactionSchema = new mongoose.Schema(
   {
+    company_name: {
+      type: String,
+      required: false,
+      default: 'Unknown',
+    },
     items: [transactionItemSchema],
     subtotal: {
       type: Number,
@@ -39,6 +44,11 @@ const transactionSchema = new mongoose.Schema(
       required: true,
     },
     total: {
+      type: Number,
+      required: true,
+    },
+    // Alias to help monitoring UI
+    totalAmount: {
       type: Number,
       required: true,
     },

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Navbar from '../components/Navbar';
-import { Users, Edit, Trash2 } from 'lucide-react';
+import { Users, Edit, Trash2, Search, X, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import axios from '../lib/axios';
 
 const UsersPage = () => {
@@ -9,10 +9,17 @@ const UsersPage = () => {
   const [editingUser, setEditingUser] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
-    email: '',
+    user_id: '',
     password: '',
+    company_name: '',
     role: 'cashier',
   });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterRole, setFilterRole] = useState('all');
+  const [filterCompany, setFilterCompany] = useState('all');
+  const [sortBy, setSortBy] = useState('name');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     fetchUsers();
@@ -58,8 +65,9 @@ const UsersPage = () => {
     setEditingUser(user);
     setFormData({
       name: user.name,
-      email: user.email,
+      user_id: user.user_id,
       password: '',
+      company_name: user.company_name,
       role: user.role,
     });
     setShowModal(true);
@@ -68,19 +76,69 @@ const UsersPage = () => {
   const resetForm = () => {
     setFormData({
       name: '',
-      email: '',
+      user_id: '',
       password: '',
+      company_name: '',
       role: 'cashier',
     });
   };
+
+  // Get unique companies for filter
+  const companies = useMemo(() => {
+    return [...new Set(users.map(u => u.company_name))].sort();
+  }, [users]);
+
+  // Filter and search logic
+  const filteredAndSorted = useMemo(() => {
+    let filtered = users.filter(user => {
+      const matchesSearch = 
+        user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.user_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.company_name.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesRole = filterRole === 'all' || user.role === filterRole;
+      const matchesCompany = filterCompany === 'all' || user.company_name === filterCompany;
+
+      return matchesSearch && matchesRole && matchesCompany;
+    });
+
+    // Sort
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'user_id':
+          return a.user_id.localeCompare(b.user_id);
+        case 'role':
+          return a.role.localeCompare(b.role);
+        case 'company':
+          return a.company_name.localeCompare(b.company_name);
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  }, [users, searchQuery, filterRole, filterCompany, sortBy]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredAndSorted.length / itemsPerPage);
+  const paginatedUsers = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredAndSorted.slice(start, start + itemsPerPage);
+  }, [filteredAndSorted, currentPage]);
+
+  // Reset pagination on filter/search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterRole, filterCompany, sortBy]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar />
 
       <div className="max-w-full mx-auto px-4 md:px-6 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white"><Users size={28} className="inline mr-2" /> Users</h1>
+        <div className="flex items-center justify-end mb-8">
           <button
             onClick={() => {
               resetForm();
@@ -93,24 +151,121 @@ const UsersPage = () => {
           </button>
         </div>
 
+        {/* Search and Filter Bar */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-center">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by name, ID, or company..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+              />
+            </div>
+
+            {/* Filter by Role */}
+            <div className="relative">
+              <select
+                value={filterRole}
+                onChange={(e) => setFilterRole(e.target.value)}
+                className="w-full pr-8 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:border-transparent appearance-none"
+              >
+                <option value="all">All Roles</option>
+                <option value="admin">Admin</option>
+                <option value="manager">Manager</option>
+                <option value="inventory_manager">Inventory Manager</option>
+                <option value="cashier">Cashier</option>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-300" />
+            </div>
+
+            {/* Filter by Company */}
+            <div className="relative">
+              <select
+                value={filterCompany}
+                onChange={(e) => setFilterCompany(e.target.value)}
+                className="w-full pr-8 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:border-transparent appearance-none"
+              >
+                <option value="all">All Companies</option>
+                {companies.map(company => (
+                  <option key={company} value={company}>{company}</option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-300" />
+            </div>
+
+            {/* Sort + Reset Icon */}
+            <div className="relative flex items-center gap-2">
+              <div className="flex-1 relative">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="w-full pr-8 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:border-transparent appearance-none"
+                >
+                  <option value="name">Sort by Name</option>
+                  <option value="user_id">Sort by User ID</option>
+                  <option value="role">Sort by Role</option>
+                  <option value="company">Sort by Company</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-300" />
+              </div>
+              {/* Reset Filters Icon Button */}
+              {(
+                searchQuery !== '' ||
+                filterRole !== 'all' ||
+                filterCompany !== 'all' ||
+                sortBy !== 'name'
+              ) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setFilterRole('all');
+                    setFilterCompany('all');
+                    setSortBy('name');
+                  }}
+                  className="ml-1 p-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  title="Reset filters to default"
+                  aria-label="Reset filters to default"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Results Summary */}
+        <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+          Showing <span className="font-semibold">{paginatedUsers.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}</span> to <span className="font-semibold">{Math.min(currentPage * itemsPerPage, filteredAndSorted.length)}</span> of <span className="font-semibold">{filteredAndSorted.length}</span> users
+        </div>
+
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase hidden sm:table-cell">User ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase hidden lg:table-cell">Company</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Role</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {users.map((user) => (
+              {paginatedUsers.map((user) => (
                 <tr key={user._id} className="hover:bg-gray-100 dark:hover:bg-gray-700">
                   <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{user.name}</td>
-                  <td className="px-6 py-4 text-gray-600 dark:text-gray-400">{user.email}</td>
+                  <td className="px-6 py-4 text-gray-600 dark:text-gray-400 hidden sm:table-cell text-sm">{user.user_id}</td>
+                  <td className="px-6 py-4 text-gray-600 dark:text-gray-400 hidden lg:table-cell text-sm">{user.company_name}</td>
                   <td className="px-6 py-4">
                     <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-                      user.role === 'admin' ? 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200' : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
+                      user.role === 'admin' ? 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200' :
+                      user.role === 'manager' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' :
+                      user.role === 'inventory_manager' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' :
+                      'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
                     }`}>
                       {user.role}
                     </span>
@@ -135,7 +290,40 @@ const UsersPage = () => {
               ))}
             </tbody>
           </table>
+
+          {/* Empty State */}
+          {filteredAndSorted.length === 0 && (
+            <div className="text-center py-12">
+              <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-600 dark:text-gray-400">No users found matching your filters</p>
+            </div>
+          )}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="mt-6 flex items-center justify-between">
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Page <span className="font-semibold">{currentPage}</span> of <span className="font-semibold">{totalPages}</span>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="flex items-center gap-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={18} /> Previous
+              </button>
+              <button
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                className="flex items-center gap-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next <ChevronRight size={18} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Add/Edit User Modal */}
@@ -157,11 +345,22 @@ const UsersPage = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">User ID</label>
                 <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  type="text"
+                  value={formData.user_id}
+                  onChange={(e) => setFormData({ ...formData, user_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  disabled={editingUser}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Company Name</label>
+                <input
+                  type="text"
+                  value={formData.company_name}
+                  onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   required
                 />
@@ -186,6 +385,8 @@ const UsersPage = () => {
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
                   <option value="cashier">Cashier</option>
+                  <option value="inventory_manager">Inventory Manager</option>
+                  <option value="manager">Manager</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>

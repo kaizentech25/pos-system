@@ -2,6 +2,11 @@ import mongoose from 'mongoose';
 
 const productSchema = new mongoose.Schema(
   {
+    company_name: {
+      type: String,
+      required: false,
+      default: 'Unknown',
+    },
     name: {
       type: String,
       required: true,

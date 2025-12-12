@@ -1,25 +1,21 @@
 import User from '../models/User.js';
 
-// Simple password comparison (in production, use bcrypt)
-const comparePassword = (inputPassword, storedPassword) => {
-  return inputPassword === storedPassword;
-};
-
 export const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { user_id, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'Email and password are required' });
+    if (!user_id || !password) {
+      return res.status(400).json({ success: false, message: 'User ID and password are required' });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ user_id });
 
     if (!user) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    if (!comparePassword(password, user.password)) {
+    const isPasswordValid = await user.comparePassword(password);
+    if (!isPasswordValid) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
@@ -27,7 +23,8 @@ export const login = async (req, res) => {
     const userResponse = {
       _id: user._id,
       name: user.name,
-      email: user.email,
+      user_id: user.user_id,
+      company_name: user.company_name,
       role: user.role,
     };
 
@@ -50,24 +47,25 @@ export const getAllUsers = async (req, res) => {
 
 export const createUser = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, user_id, password, company_name, role } = req.body;
 
-    if (!name || !email || !password) {
+    if (!name || !user_id || !password || !company_name) {
       return res.status(400).json({ success: false, message: 'All fields are required' });
     }
 
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ user_id });
     if (existingUser) {
       return res.status(400).json({ success: false, message: 'User already exists' });
     }
 
-    const user = new User({ name, email, password, role: role || 'cashier' });
+    const user = new User({ name, user_id, password, company_name, role: role || 'cashier' });
     await user.save();
 
     const userResponse = {
       _id: user._id,
       name: user.name,
-      email: user.email,
+      user_id: user.user_id,
+      company_name: user.company_name,
       role: user.role,
     };
 
@@ -81,7 +79,7 @@ export const createUser = async (req, res) => {
 export const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, password, role } = req.body;
+    const { name, user_id, password, company_name, role } = req.body;
 
     const user = await User.findById(id);
     if (!user) {
@@ -89,8 +87,9 @@ export const updateUser = async (req, res) => {
     }
 
     if (name) user.name = name;
-    if (email) user.email = email;
+    if (user_id) user.user_id = user_id;
     if (password) user.password = password;
+    if (company_name) user.company_name = company_name;
     if (role) user.role = role;
 
     await user.save();
@@ -98,7 +97,8 @@ export const updateUser = async (req, res) => {
     const userResponse = {
       _id: user._id,
       name: user.name,
-      email: user.email,
+      user_id: user.user_id,
+      company_name: user.company_name,
       role: user.role,
     };
 

@@ -97,10 +97,10 @@ const ProductsPage = () => {
       <Navbar />
 
       <div className="max-w-full mx-auto px-4 md:px-6 py-8">
-        <div className="mb-8">
+        {/* <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2"><ShoppingCart size={28} className="inline mr-2" /> Products & Inventory</h1>
           <p className="text-gray-600 dark:text-gray-400">Manage your inventory and product catalog</p>
-        </div>
+        </div> */}
 
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
           <div className="p-6 border-b border-gray-200 dark:border-gray-700">

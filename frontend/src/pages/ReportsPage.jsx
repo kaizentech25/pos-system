@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
-import { FileBarChart, Download, DollarSign, ShoppingBag, TrendingUp, Trophy } from 'lucide-react';
-import { Banknote, QrCode, CreditCard } from 'lucide-react';
+import { FileBarChart, Download, Banknote, ShoppingBag, TrendingUp, Trophy, QrCode, CreditCard } from 'lucide-react';
 import axios from '../lib/axios';
 
 const ReportsPage = () => {
@@ -77,7 +76,7 @@ const ReportsPage = () => {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
-                <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
+                <Banknote className="w-6 h-6 text-green-600 dark:text-green-400" />
               </div>
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Total Sales</p>

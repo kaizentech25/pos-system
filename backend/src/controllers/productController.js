@@ -2,11 +2,15 @@ import Product from '../models/Product.js';
 
 export const getAllProducts = async (req, res) => {
   try {
-    const { category, search } = req.query;
+    const { category, search, company_name } = req.query;
     let query = {};
 
     if (category && category !== 'All Categories') {
       query.category = category;
+    }
+
+    if (company_name) {
+      query.company_name = company_name;
     }
 
     if (search) {
@@ -109,9 +113,14 @@ export const deleteProduct = async (req, res) => {
 
 export const getLowStockProducts = async (req, res) => {
   try {
-    const products = await Product.find({
-      $expr: { $lte: ['$stock', '$lowStockAlert'] },
-    });
+    const { company_name } = req.query;
+    const query = { $expr: { $lte: ['$stock', '$lowStockAlert'] } };
+    
+    if (company_name) {
+      query.company_name = company_name;
+    }
+
+    const products = await Product.find(query);
 
     res.status(200).json({ success: true, data: products });
   } catch (error) {
