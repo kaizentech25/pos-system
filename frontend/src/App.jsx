@@ -7,7 +7,6 @@ import DashboardPage from "./pages/DashboardPage";
 import POSTerminalPage from "./pages/POSTerminalPage";
 import ProductsPage from "./pages/ProductsPage";
 import UsersPage from "./pages/UsersPage";
-import ReportsPage from "./pages/ReportsPage";
 import AdminSystemMonitoring from "./pages/AdminSystemMonitoring";
 import ManagerAnalyticsDashboard from "./pages/ManagerAnalyticsDashboard";
 
@@ -111,14 +110,6 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
             <UsersPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/reports"
-        element={
-          <ProtectedRoute allowedRoles={["admin", "manager"]}>
-            <ReportsPage />
           </ProtectedRoute>
         }
       />

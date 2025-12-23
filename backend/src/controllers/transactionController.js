@@ -7,7 +7,7 @@ export const createTransaction = async (req, res) => {
   session.startTransaction();
 
   try {
-    const { items, subtotal, discount, vat, total, paymentMethod, cashier, cashierName, company_name } = req.body;
+    const { items, subtotal, discount, vat, total, paymentMethod, cashReceived, change, cashier, cashierName, company_name } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ success: false, message: 'Transaction must have at least one item' });
@@ -42,6 +42,8 @@ export const createTransaction = async (req, res) => {
       total,
       totalAmount: total,
       paymentMethod,
+      cashReceived: cashReceived || 0,
+      change: change || 0,
       cashier,
       cashierName,
       company_name: company_name || 'Unknown',

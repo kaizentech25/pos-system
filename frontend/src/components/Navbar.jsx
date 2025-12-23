@@ -47,7 +47,7 @@ const Navbar = () => {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <Link to="/" className="text-xl md:text-2xl font-bold text-blue-600 dark:text-blue-400 flex-shrink-0">
-            TechWisePH POS
+            Kaizen Tech
           </Link>
 
           {/* Desktop Navigation */}
@@ -72,7 +72,6 @@ const Navbar = () => {
                       { path: '/dashboard', label: 'Dashboard' },
                       { path: '/pos', label: 'POS Terminal' },
                       { path: '/products', label: 'Inventory' },
-                      { path: '/reports', label: 'Reports' },
                       { path: '/analytics', label: 'Business Intelligence' },
                     ];
                     const activeFeature = featureTabs.find(tab => isActive(tab.path));
@@ -102,9 +101,6 @@ const Navbar = () => {
                       <Link to="/products" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600">
                         <Boxes size={16} className="inline mr-2" /> Inventory
                       </Link>
-                      <Link to="/reports" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600">
-                        <FileBarChart size={16} className="inline mr-2" /> Reports
-                      </Link>
                       <Link to="/analytics" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600">
                         <LayoutDashboard size={16} className="inline mr-2" /> Business Intelligence
                       </Link>
@@ -126,11 +122,6 @@ const Navbar = () => {
               {!isAdmin && canInventory && (
                 <Link to="/products" className={navLinkClass('/products')}>
                   <Boxes size={18} className="inline mr-1" /> Inventory
-                </Link>
-              )}
-              {!isAdmin && canReports && (
-                <Link to="/reports" className={navLinkClass('/reports')}>
-                  <FileBarChart size={18} className="inline mr-1" /> Reports
                 </Link>
               )}
               {/* Business Intelligence (Analytics) - Manager only */}
@@ -190,11 +181,6 @@ const Navbar = () => {
               {canInventory && (
                 <Link to="/products" onClick={() => setMenuOpen(false)} className={navLinkClass('/products') + ' block'}>
                   <Boxes size={18} className="inline mr-1" /> Inventory
-                </Link>
-              )}
-              {canReports && (
-                <Link to="/reports" onClick={() => setMenuOpen(false)} className={navLinkClass('/reports') + ' block'}>
-                  <FileBarChart size={18} className="inline mr-1" /> Reports
                 </Link>
               )}
               {/* Business Intelligence (Analytics) - Manager only */}

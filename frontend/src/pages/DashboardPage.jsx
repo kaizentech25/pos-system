@@ -94,18 +94,6 @@ const DashboardPage = () => {
             </div>
           </Link>
 
-          <Link to="/reports" className="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg dark:hover:shadow-gray-600/50 transition-shadow p-8">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-16 h-16 bg-purple-100 rounded-lg flex items-center justify-center">
-                <FileBarChart size={32} className="text-purple-600" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Reports</h3>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">View sales and analytics</p>
-              </div>
-            </div>
-          </Link>
-
           <Link to="/users" className="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg dark:hover:shadow-gray-600/50 transition-shadow p-8">
             <div className="flex items-center gap-4 mb-4">
               <div className="w-16 h-16 bg-orange-100 rounded-lg flex items-center justify-center">

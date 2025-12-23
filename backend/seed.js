@@ -137,10 +137,47 @@ const buildUsers = (company) => {
 const createTransactions = (company, products, cashiers) => {
   const transactions = [];
   const now = new Date();
-  // 2 weeks worth of transactions, 14 days
-  for (let dayIndex = 0; dayIndex < 14; dayIndex++) {
-    // Random daily count between 20 and 50
-    const count = 20 + Math.floor(Math.random() * 31);
+  const days = 60; // last 60 days for richer reporting
+
+  const weightedPick = (options) => {
+    const total = options.reduce((sum, o) => sum + o.weight, 0);
+    let roll = Math.random() * total;
+    for (const option of options) {
+      if ((roll -= option.weight) <= 0) return option.value;
+    }
+    return options[options.length - 1].value;
+  };
+
+  // Hourly distribution (store hours 7 AM - 10 PM, lunch and early evening busier)
+  const hourSlots = [
+    { value: 7, weight: 1 }, { value: 8, weight: 2 },
+    { value: 9, weight: 3 }, { value: 10, weight: 4 },
+    { value: 11, weight: 6 }, { value: 12, weight: 7 },
+    { value: 13, weight: 6 }, { value: 14, weight: 5 },
+    { value: 15, weight: 4 }, { value: 16, weight: 5 },
+    { value: 17, weight: 7 }, { value: 18, weight: 8 },
+    { value: 19, weight: 6 }, { value: 20, weight: 4 },
+    { value: 21, weight: 2 }, { value: 22, weight: 1 },
+  ];
+
+  // Payment method mix typical for PH convenience/retail
+  const paymentOptions = [
+    { value: 'Cash', weight: 55 },
+    { value: 'QR Code', weight: 20 },
+    { value: 'Card', weight: 25 },
+  ];
+
+  for (let dayIndex = 0; dayIndex < days; dayIndex++) {
+    const createdDate = new Date(now);
+    createdDate.setDate(now.getDate() - (days - 1 - dayIndex));
+    const dayOfWeek = createdDate.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+    // Weekday vs weekend volume variance
+    const baseMin = isWeekend ? 25 : 35;
+    const baseMax = isWeekend ? 60 : 80;
+    const count = baseMin + Math.floor(Math.random() * (baseMax - baseMin + 1));
+
     for (let i = 0; i < count; i++) {
       const itemCount = 1 + Math.floor(Math.random() * Math.min(4, products.length));
       const items = [];
@@ -157,14 +194,22 @@ const createTransactions = (company, products, cashiers) => {
           subtotal,
         });
       }
+
       const subtotal = items.reduce((sum, i) => sum + i.subtotal, 0);
-      const discount = 0;
-      const vat = Number((subtotal * 0.12).toFixed(2));
-      const total = Number((subtotal + vat - discount).toFixed(2));
+
+      // Occasional small promos/rounding (5-15% chance, 5-12% discount)
+      const applyDiscount = Math.random() < 0.12;
+      const discountRate = applyDiscount ? (5 + Math.floor(Math.random() * 8)) / 100 : 0;
+      const discount = Number((subtotal * discountRate).toFixed(2));
+
+      const vat = Number(((subtotal - discount) * 0.12).toFixed(2));
+      const total = Number((subtotal - discount + vat).toFixed(2));
+
       const cashier = randomPick(cashiers);
-      const createdAt = new Date(now);
-      createdAt.setDate(now.getDate() - (13 - dayIndex));
-      createdAt.setHours(9 + Math.floor(Math.random() * 9), Math.floor(Math.random() * 60), 0, 0);
+      const hour = weightedPick(hourSlots);
+      const minute = Math.floor(Math.random() * 60);
+      const createdAt = new Date(createdDate);
+      createdAt.setHours(hour, minute, 0, 0);
 
       transactions.push({
         company_name: company.name,
@@ -174,7 +219,7 @@ const createTransactions = (company, products, cashiers) => {
         vat,
         total,
         totalAmount: total,
-        paymentMethod: randomPick(['Cash', 'QR Code', 'Card']),
+        paymentMethod: weightedPick(paymentOptions),
         cashier: cashier._id,
         cashierName: cashier.name,
         createdAt,

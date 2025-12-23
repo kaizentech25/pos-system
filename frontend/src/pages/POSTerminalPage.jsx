@@ -4,6 +4,7 @@ import Navbar from '../components/Navbar';
 import { MonitorSmartphone, Search, Trash2 } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 import PaymentModal from '../components/PaymentModal';
+import ReceiptModal from '../components/ReceiptModal';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import axios from '../lib/axios';
@@ -16,6 +17,8 @@ const POSTerminalPage = () => {
   const [search, setSearch] = useState('');
   const [discount, setDiscount] = useState(0);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [receiptData, setReceiptData] = useState(null);
   const [loading, setLoading] = useState(false);
   // Company filter for admin
   const [companyFilter, setCompanyFilter] = useState(user?.role === 'admin' ? '' : user?.company_name || '');
@@ -36,7 +39,11 @@ const POSTerminalPage = () => {
   const fetchCompanies = async () => {
     try {
       const response = await axios.get('/auth/users');
-      const companies = Array.from(new Set(response.data.data.map(u => u.company_name)));
+      // Remove admin's own company and duplicates
+      let companies = Array.from(new Set(response.data.data
+        .filter(u => u.role !== 'admin' && u.company_name && u.company_name !== user?.company_name)
+        .map(u => u.company_name)
+      ));
       setCompanyOptions(companies);
     } catch (err) {
       setCompanyOptions([]);
@@ -66,7 +73,7 @@ const POSTerminalPage = () => {
   const total = subtotal + vatAmount - discountAmount;
 
 
-  const handlePayment = async (paymentMethod) => {
+  const handlePayment = async (paymentData) => {
     setLoading(true);
     try {
       const transactionData = {
@@ -82,20 +89,43 @@ const POSTerminalPage = () => {
         discount: discountAmount,
         vat: vatAmount,
         total,
-        paymentMethod,
+        paymentMethod: paymentData.method,
+        cashReceived: paymentData.cashReceived,
+        change: paymentData.change,
         cashier: user._id,
         cashierName: user.name,
         company_name: user.role === 'admin' ? companyFilter : user.company_name,
       };
 
-      await axios.post('/transactions', transactionData);
-      alert('Transaction completed successfully!');
+      const response = await axios.post('/transactions', transactionData);
+      
+      // Prepare receipt data
+      const receipt = {
+        transactionId: response.data.data._id,
+        company_name: transactionData.company_name,
+        timestamp: new Date(),
+        cashierName: user.name,
+        items: transactionData.items,
+        subtotal,
+        discount: discountAmount,
+        vat: vatAmount,
+        total,
+        paymentMethod: paymentData.method,
+        cashReceived: paymentData.cashReceived || 0,
+        change: paymentData.change || 0,
+      };
+
+      setReceiptData(receipt);
+      setShowPaymentModal(false);
+      setShowReceiptModal(true);
+      
+      // Clear cart and reset
       clearCart();
       setDiscount(0);
-      setShowPaymentModal(false);
       fetchProducts(); // Refresh to update stock
     } catch (error) {
       alert(error.response?.data?.message || 'Transaction failed');
+      setShowPaymentModal(false);
     } finally {
       setLoading(false);
     }
@@ -128,7 +158,7 @@ const POSTerminalPage = () => {
                     onChange={e => setCompanyFilter(e.target.value)}
                     className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:border-transparent min-w-[200px]"
                   >
-                    <option value="">All Companies</option>
+                    <option value="">Select Company</option>
                     {companyOptions.map((c) => (
                       <option key={c} value={c}>{c}</option>
                     ))}
@@ -276,6 +306,13 @@ const POSTerminalPage = () => {
         onClose={() => setShowPaymentModal(false)}
         total={total}
         onConfirmPayment={handlePayment}
+        loading={loading}
+      />
+
+      <ReceiptModal
+        isOpen={showReceiptModal}
+        onClose={() => setShowReceiptModal(false)}
+        receipt={receiptData}
       />
     </div>
   );

@@ -57,6 +57,14 @@ const transactionSchema = new mongoose.Schema(
       enum: ['Cash', 'QR Code', 'Card'],
       required: true,
     },
+    cashReceived: {
+      type: Number,
+      default: 0,
+    },
+    change: {
+      type: Number,
+      default: 0,
+    },
     cashier: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

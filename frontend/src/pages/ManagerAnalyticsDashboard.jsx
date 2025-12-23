@@ -197,7 +197,7 @@ const ManagerAnalyticsDashboard = () => {
         <div className="mb-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div>
-              <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Business Intelligence</h1>
+              <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Business Insights</h1>
               <p className="text-gray-600 dark:text-gray-400 mt-1">Multi-company POS analytics dashboard</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
