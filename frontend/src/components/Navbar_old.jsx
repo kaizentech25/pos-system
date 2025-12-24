@@ -64,7 +64,7 @@ const Navbar = () => {
                   <Users size={18} className="inline mr-1" /> Users
                 </Link>
               )}
-              {/* Features dropdown for Admin only */}
+              {/* Admin: System Features Dropdown (grouped) */}
               {isAdmin && (
                 <div className="relative group">
                   {(() => {
@@ -113,46 +113,32 @@ const Navbar = () => {
                   )}
                 </div>
               )}
-              {/* Manager: Individual feature links (includes analytics) */}
-              {isManager && canDashboard && (
+              {/* Non-admin: Individual feature links (ordered) */}
+              {!isAdmin && canDashboard && (
                 <Link to="/dashboard" className={navLinkClass('/dashboard')}>
                   <LayoutDashboard size={18} className="inline mr-1" /> Dashboard
                 </Link>
               )}
-              {isManager && canPOS && (
+              {!isAdmin && canPOS && (
                 <Link to="/pos" className={navLinkClass('/pos')}>
                   <MonitorSmartphone size={18} className="inline mr-1" /> POS Terminal
                 </Link>
               )}
-              {isManager && canInventory && (
+              {!isAdmin && canInventory && (
                 <Link to="/products" className={navLinkClass('/products')}>
                   <Boxes size={18} className="inline mr-1" /> Inventory
                 </Link>
               )}
-              {isManager && canAnalytics && (
+              {/* Market Analytics - Admin only */}
+              {isAdmin && (
                 <Link to="/analytics/market" className={navLinkClass('/analytics/market')}>
                   <FileBarChart size={18} className="inline mr-1" /> Market Analytics
                 </Link>
               )}
-              {isManager && canAnalytics && (
+              {/* Company Analytics - Admin and Manager */}
+              {canAnalytics && (
                 <Link to="/analytics/company" className={navLinkClass('/analytics/company')}>
                   <LayoutDashboard size={18} className="inline mr-1" /> Company Analytics
-                </Link>
-              )}
-              {/* Non-admin, non-manager: Individual feature links (ordered) */}
-              {!isAdmin && !isManager && canDashboard && (
-                <Link to="/dashboard" className={navLinkClass('/dashboard')}>
-                  <LayoutDashboard size={18} className="inline mr-1" /> Dashboard
-                </Link>
-              )}
-              {!isAdmin && !isManager && canPOS && (
-                <Link to="/pos" className={navLinkClass('/pos')}>
-                  <MonitorSmartphone size={18} className="inline mr-1" /> POS Terminal
-                </Link>
-              )}
-              {!isAdmin && !isManager && canInventory && (
-                <Link to="/products" className={navLinkClass('/products')}>
-                  <Boxes size={18} className="inline mr-1" /> Inventory
                 </Link>
               )}
           </div>
@@ -208,18 +194,17 @@ const Navbar = () => {
                   <Boxes size={18} className="inline mr-1" /> Inventory
                 </Link>
               )}
-              {/* Analytics - Admin and Manager */}
-              {(isAdmin || isManager) && (
-                <>
-                  <hr className="my-2 border-gray-200 dark:border-gray-700" />
-                  <Link to="/analytics/market" onClick={() => setMenuOpen(false)} className={navLinkClass('/analytics/market') + ' block'}>
-                    <FileBarChart size={18} className="inline mr-1" /> Market Analytics
-                  </Link>
-                  <Link to="/analytics/company" onClick={() => setMenuOpen(false)} className={navLinkClass('/analytics/company') + ' block'}>
-                    <LayoutDashboard size={18} className="inline mr-1" /> Company Analytics
-                  </Link>
-                  <hr className="my-2 border-gray-200 dark:border-gray-700" />
-                </>
+              {/* Market Analytics - Admin only */}
+              {isAdmin && (
+                <Link to="/analytics/market" onClick={() => setMenuOpen(false)} className={navLinkClass('/analytics/market') + ' block'}>
+                  <FileBarChart size={18} className="inline mr-1" /> Market Analytics
+                </Link>
+              )}
+              {/* Company Analytics - Admin and Manager */}
+              {canAnalytics && (
+                <Link to="/analytics/company" onClick={() => setMenuOpen(false)} className={navLinkClass('/analytics/company') + ' block'}>
+                  <LayoutDashboard size={18} className="inline mr-1" /> Company Analytics
+                </Link>
               )}
               {/* System Monitoring - Admin only */}
               {canMonitoring && (
@@ -251,4 +236,4 @@ const Navbar = () => {
   );
 };
 
-export default Navbar;
+export default Navbar

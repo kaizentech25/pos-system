@@ -1,4 +1,5 @@
-import { Route, Routes, Navigate } from "react-router";
+import React, { useEffect } from "react";
+import { Route, Routes, Navigate, useNavigate } from "react-router";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
 import HomePage from "./pages/HomePage";
@@ -8,7 +9,9 @@ import POSTerminalPage from "./pages/POSTerminalPage";
 import ProductsPage from "./pages/ProductsPage";
 import UsersPage from "./pages/UsersPage";
 import AdminSystemMonitoring from "./pages/AdminSystemMonitoring";
-import ManagerAnalyticsDashboard from "./pages/ManagerAnalyticsDashboard";
+import MarketAnalyticsDashboard from "./pages/MarketAnalyticsDashboard";
+import CompanyAnalyticsDashboard from "./pages/CompanyAnalyticsDashboard";
+import ManagerAnalyticsDashboard from "./pages/ManagerAnalyticsDashboard"; // Legacy fallback
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
@@ -54,6 +57,22 @@ const UnauthorizedPage = () => (
     </div>
   </div>
 );
+
+// Smart router for analytics - redirects to correct dashboard based on role
+const SmartAnalyticsRedirect = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      navigate('/analytics/market', { replace: true });
+    } else {
+      navigate('/analytics/company', { replace: true });
+    }
+  }, [user, navigate]);
+
+  return null;
+};
 
 const AppRoutes = () => {
   const { user } = useAuth();
@@ -122,10 +141,27 @@ const AppRoutes = () => {
         }
       />
       <Route
+        path="/analytics/market"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "manager"]}>
+            <MarketAnalyticsDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/analytics/company"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "manager"]}>
+            <CompanyAnalyticsDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/analytics"
         element={
           <ProtectedRoute allowedRoles={["admin", "manager"]}>
-            <ManagerAnalyticsDashboard />
+            {/* Smart redirect based on user role */}
+            <SmartAnalyticsRedirect />
           </ProtectedRoute>
         }
       />

@@ -5,6 +5,7 @@ import {
   Target, Zap, Award, Package, MapPin
 } from 'lucide-react';
 import axios from '../lib/axios';
+import { useAuth } from '../context/AuthContext';
 import {
   calculateRevenueTrend, calculateHourlyDistribution, calculateProductAnalytics,
   calculateCompanyComparison, generateInsights, calculateGrowth, formatMetric
@@ -15,6 +16,7 @@ import {
 } from '../components/Charts';
 
 const ManagerAnalyticsDashboard = () => {
+  const { user } = useAuth();
   const dashboardSections = [
     { key: 'overview', label: '📊 Overview' },
     { key: 'revenue', label: '💰 Revenue Analytics' },
@@ -70,6 +72,11 @@ const ManagerAnalyticsDashboard = () => {
         products,
         companies,
       });
+      
+      // Set selected company to user's company if not already set
+      if (user && user.company_name && selectedCompany === 'all') {
+        setSelectedCompany(user.company_name);
+      }
     } catch (error) {
       console.error('Error fetching monitoring data:', error);
     } finally {
@@ -127,8 +134,30 @@ const ManagerAnalyticsDashboard = () => {
     return stats.users.filter((u) => u.company_name === selectedCompany);
   }, [stats.users, selectedCompany]);
 
+  // Calculate appropriate number of days for trend based on time range
+  const trendDays = useMemo(() => {
+    switch (timeRange) {
+      case '24h':
+        return 1; // Show hourly or single day
+      case '7d':
+        return 7;
+      case '30d':
+        return 30;
+      case 'all':
+        // Calculate days between earliest and latest transaction
+        if (filteredTransactions.length === 0) return 30;
+        const dates = filteredTransactions.map(t => new Date(t.createdAt).getTime());
+        const minDate = Math.min(...dates);
+        const maxDate = Math.max(...dates);
+        const daysDiff = Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24));
+        return Math.max(daysDiff, 7); // At least 7 days for meaningful trend
+      default:
+        return 7;
+    }
+  }, [timeRange, filteredTransactions]);
+
   // Analytics calculations
-  const revenueTrend = useMemo(() => calculateRevenueTrend(filteredTransactions, 7), [filteredTransactions]);
+  const revenueTrend = useMemo(() => calculateRevenueTrend(filteredTransactions, trendDays), [filteredTransactions, trendDays]);
   const hourlyDist = useMemo(() => calculateHourlyDistribution(filteredTransactions), [filteredTransactions]);
   const productAnalytics = useMemo(() => calculateProductAnalytics(filteredTransactions), [filteredTransactions]);
   const companyStats = useMemo(() => calculateCompanyComparison(filteredTransactions, stats.companies), [filteredTransactions, stats.companies]);
@@ -197,7 +226,7 @@ const ManagerAnalyticsDashboard = () => {
         <div className="mb-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div>
-              <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Business Insights</h1>
+              <h1 className="text-4xl font-bold text-gray-900 dark:text-white">Business Intelligence</h1>
               <p className="text-gray-600 dark:text-gray-400 mt-1">Multi-company POS analytics dashboard</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
@@ -227,9 +256,17 @@ const ManagerAnalyticsDashboard = () => {
                   className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm"
                 >
                   <option value="all">All Companies</option>
-                  {stats.companies.map(company => (
-                    <option key={company} value={company}>{company}</option>
-                  ))}
+                  {user?.role === 'admin' ? (
+                    // Admin can see all companies individually
+                    stats.companies.map(company => (
+                      <option key={company} value={company}>{company}</option>
+                    ))
+                  ) : (
+                    // Regular users can only select their own company
+                    user?.company_name && (
+                      <option key={user.company_name} value={user.company_name}>{user.company_name}</option>
+                    )
+                  )}
                 </select>
               )}
               <button
