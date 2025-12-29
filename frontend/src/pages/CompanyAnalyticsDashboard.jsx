@@ -13,7 +13,7 @@ import {
 } from '../lib/analyticsUtils';
 import { MetricCard, ChartCard, InsightCard, SimpleChart, LoadingSkeleton } from '../components/DashboardComponents';
 import {
-  SimpleLineChart, SimpleAreaChart, SimpleBarChart, HourlyHeatmapChart
+  SimpleLineChart, SimpleAreaChart, SimpleBarChart, HourlyHeatmapChart, CombinedLineAreaChart, HorizontalBarChart
 } from '../components/Charts';
 import ReceiptModal from '../components/ReceiptModal';
 
@@ -54,7 +54,6 @@ const CompanyAnalyticsDashboard = () => {
     { key: 'sales', label: '📈 Sales & Activity' },
     { key: 'products', label: '📦 Product Performance' },
     { key: 'transactions', label: '📝 Transactions & Receipts' },
-    { key: 'insights', label: '💡 Insights & Alerts' },
   ];
 
   const [activeSection, setActiveSection] = useState('overview');
@@ -66,6 +65,9 @@ const CompanyAnalyticsDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('7d');
   const [anchorTime, setAnchorTime] = useState(() => Date.now());
+  const [activityView, setActivityView] = useState('daily');
+  const [productPage, setProductPage] = useState(1);
+  const productsPerPage = 10;
 
   // Receipt modal state
   const [selectedReceipt, setSelectedReceipt] = useState(null);
@@ -82,6 +84,10 @@ const CompanyAnalyticsDashboard = () => {
   useEffect(() => {
     fetchCompanyData();
   }, [user?.company_name]);
+
+  useEffect(() => {
+    setActivityView(timeRange === '24h' ? 'hourly' : 'daily');
+  }, [timeRange]);
 
   const fetchCompanyData = async () => {
     try {
@@ -126,6 +132,7 @@ const CompanyAnalyticsDashboard = () => {
   };
 
   const formatPeso = (amount) => {
+    if (typeof amount !== 'number' || isNaN(amount)) return '₱0.00';
     return '₱' + amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
@@ -182,8 +189,57 @@ const CompanyAnalyticsDashboard = () => {
   // Analytics: FOR THIS COMPANY ONLY
   const revenueTrend = useMemo(() => calculateRevenueTrend(filteredTransactions, trendDays, anchorTime, timeRange), [filteredTransactions, trendDays, anchorTime, timeRange]);
   const hourlyDist = useMemo(() => calculateHourlyDistribution(filteredTransactions), [filteredTransactions]);
+  const dailyActivity = useMemo(() => {
+    const now = anchorTime ? new Date(anchorTime) : new Date();
+
+    const formatLocalDateKey = (d) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    const data = [];
+
+    for (let i = trendDays - 1; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      const dateKey = formatLocalDateKey(date);
+
+      const dayTransactions = filteredTransactions.filter((t) => {
+        const tKey = formatLocalDateKey(new Date(t.createdAt));
+        return tKey === dateKey;
+      });
+
+      const revenue = dayTransactions.reduce((sum, t) => sum + (t.totalAmount || t.total || 0), 0);
+
+      data.push({
+        label: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        count: dayTransactions.length,
+        revenue,
+      });
+    }
+
+    return data;
+  }, [filteredTransactions, trendDays, anchorTime]);
+  const peakHour = useMemo(() => hourlyDist.reduce((max, h) => (h.count > max.count ? h : max), hourlyDist[0] || { hour: 0, count: 0, revenue: 0 }), [hourlyDist]);
+  const peakHourRevenue = useMemo(() => hourlyDist.reduce((max, h) => (h.revenue > max.revenue ? h : max), hourlyDist[0] || { hour: 0, count: 0, revenue: 0 }), [hourlyDist]);
+  const peakDay = useMemo(() => dailyActivity.reduce((max, d) => (d.count > max.count ? d : max), dailyActivity[0] || { label: 'N/A', count: 0, revenue: 0 }), [dailyActivity]);
+  const peakDayRevenue = useMemo(() => dailyActivity.reduce((max, d) => (d.revenue > max.revenue ? d : max), dailyActivity[0] || { label: 'N/A', count: 0, revenue: 0 }), [dailyActivity]);
+  const avgHourlyTransactions = useMemo(() => {
+    const hours = Math.max(1, trendDays * 24);
+    return filteredTransactions.length / hours;
+  }, [filteredTransactions.length, trendDays]);
+  const avgDailyTransactions = useMemo(() => {
+    if (!dailyActivity.length) return 0;
+    return dailyActivity.reduce((sum, d) => sum + d.count, 0) / dailyActivity.length;
+  }, [dailyActivity]);
   const productAnalytics = useMemo(() => calculateProductAnalytics(filteredTransactions), [filteredTransactions]);
-  const companyInsights = useMemo(() => generateInsights(filteredTransactions, [user?.company_name], stats.products, timeRange), [filteredTransactions, user?.company_name, stats.products, timeRange]);
+  const avgQuantityPerSale = useMemo(() => {
+    const totalQty = productAnalytics.reduce((sum, p) => sum + p.quantity, 0);
+    const totalTx = productAnalytics.reduce((sum, p) => sum + p.transactions, 0);
+    return totalTx > 0 ? totalQty / totalTx : 0;
+  }, [productAnalytics]);
 
   // Key metrics
   const totalRevenue = useMemo(() => {
@@ -256,6 +312,59 @@ const CompanyAnalyticsDashboard = () => {
     }
   }, [timeRange]);
 
+  // Company-specific insights (not comparative)
+  const companyInsights = useMemo(() => {
+    const insights = [];
+    
+    // Time period context
+    const timePeriodText = (() => {
+      switch (timeRange) {
+        case '24h': return 'in the last 24 hours';
+        case '7d': return 'in the last 7 days';
+        case '30d': return 'in the last 30 days';
+        case 'all': return 'in all time';
+        default: return 'in the selected period';
+      }
+    })();
+    
+    // Revenue performance
+    if (totalRevenue > 0) {
+      insights.push(`💰 Total revenue of ₱${totalRevenue.toLocaleString('en-PH', { maximumFractionDigits: 0 })} generated from ${filteredTransactions.length.toLocaleString()} transactions ${timePeriodText}.`);
+    } else {
+      insights.push(`📊 No revenue recorded ${timePeriodText}.`);
+    }
+    
+    // Top product
+    const topProduct = productAnalytics[0];
+    if (topProduct) {
+      insights.push(`⭐ Best-selling product ${timePeriodText}: ${topProduct.name} with ${Math.floor(topProduct.quantity).toLocaleString()} units sold (₱${topProduct.revenue.toLocaleString('en-PH', { maximumFractionDigits: 0 })} revenue).`);
+    }
+    
+    // Peak hour
+    if (hourlyDist.length > 0) {
+      const peakHour = hourlyDist.reduce((max, h) => h.count > max.count ? h : max, hourlyDist[0]);
+      if (peakHour.count > 0) {
+        const hour12 = peakHour.hour % 12 === 0 ? 12 : peakHour.hour % 12;
+        const ampm = peakHour.hour < 12 ? 'AM' : 'PM';
+        insights.push(`⏰ Peak business hour ${timePeriodText}: ${hour12}:00 ${ampm} with ${peakHour.count.toLocaleString()} transactions (₱${peakHour.revenue.toLocaleString('en-PH', { maximumFractionDigits: 0 })}).`);
+      }
+    }
+    
+    // Average transaction
+    if (avgTransaction > 0) {
+      insights.push(`📊 Average order value ${timePeriodText}: ₱${avgTransaction.toLocaleString('en-PH', { maximumFractionDigits: 2 })} per transaction.`);
+    }
+    
+    // Growth indicators
+    if (revenueGrowth !== null) {
+      const growthText = revenueGrowth >= 0 ? 'increased' : 'decreased';
+      const growthEmoji = revenueGrowth >= 0 ? '📈' : '📉';
+      insights.push(`${growthEmoji} Revenue ${growthText} by ${Math.abs(revenueGrowth).toFixed(1)}% ${comparisonLabel}.`);
+    }
+    
+    return insights;
+  }, [filteredTransactions, totalRevenue, productAnalytics, hourlyDist, avgTransaction, revenueGrowth, comparisonLabel, timeRange]);
+
   // Transaction table helpers
   const handleSort = (field) => {
     if (sortField === field) {
@@ -308,13 +417,21 @@ const CompanyAnalyticsDashboard = () => {
       timestamp: transaction.createdAt,
       company_name: transaction.company_name,
       cashierName: transaction.cashierName || 'N/A',
-      items: transaction.items || [],
-      subtotal: transaction.subtotal || transaction.totalAmount || transaction.total || 0,
-      tax: transaction.tax || 0,
+      items: (transaction.items || []).map(item => ({
+        productName: item.productName || item.name || 'Unknown',
+        productSku: item.productSku || item.sku || 'N/A',
+        quantity: item.quantity || 0,
+        price: item.price || 0,
+        subtotal: item.subtotal || (item.price * item.quantity) || 0,
+      })),
+      subtotal: transaction.subtotal || 0,
+      vat: transaction.vat || transaction.tax || 0,
+      tax: transaction.vat || transaction.tax || 0,
       discount: transaction.discount || 0,
       total: transaction.totalAmount || transaction.total || 0,
       paymentMethod: transaction.paymentMethod || 'Cash',
-      amountPaid: transaction.amountPaid || transaction.totalAmount || transaction.total || 0,
+      cashReceived: transaction.cashReceived || transaction.amountPaid || transaction.totalAmount || transaction.total || 0,
+      amountPaid: transaction.amountPaid || transaction.cashReceived || transaction.totalAmount || transaction.total || 0,
       change: transaction.change || 0,
     };
 
@@ -324,14 +441,24 @@ const CompanyAnalyticsDashboard = () => {
 
   const getProductsSummary = (items) => {
     if (!items || items.length === 0) return 'N/A';
-    if (items.length === 1) return items[0].name;
-    if (items.length === 2) return `${items[0].name}, ${items[1].name}`;
-    return `${items[0].name}, ${items[1].name} +${items.length - 2} more`;
+    const getName = (item) => item.productName || item.name || 'Unknown';
+    if (items.length === 1) return getName(items[0]);
+    if (items.length === 2) return `${getName(items[0])}, ${getName(items[1])}`;
+    return `${getName(items[0])}, ${getName(items[1])} +${items.length - 2} more`;
   };
 
   const getTotalQuantity = (items) => {
     if (!items || items.length === 0) return 0;
     return items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+  };
+
+  // Helper to format hour in 12-hour AM/PM format
+  const formatHour12 = (hour) => {
+    const h = parseInt(hour, 10);
+    if (isNaN(h)) return hour;
+    const ampm = h < 12 ? 'AM' : 'PM';
+    const hour12 = h % 12 === 0 ? 12 : h % 12;
+    return `${hour12}:00 ${ampm}`;
   };
 
   if (loading) {
@@ -425,66 +552,147 @@ const CompanyAnalyticsDashboard = () => {
               />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              <ChartCard title="Revenue Trend" icon={TrendingUp}>
-                <SimpleLineChart data={revenueTrend} dataKey="revenue" color="#3b82f6" />
-              </ChartCard>
-              <ChartCard title="Daily Transaction Volume" icon={Activity}>
-                <SimpleAreaChart data={revenueTrend} dataKey="transactions" color="#8b5cf6" />
+            <div className="grid grid-cols-1 gap-6 mb-8">
+              <ChartCard title="Revenue & Transactions" icon={TrendingUp}>
+                <CombinedLineAreaChart
+                  data={revenueTrend}
+                  lineKey="revenue"
+                  areaKey="transactions"
+                  lineColor="#3b82f6"
+                  areaColor="#f59e0b"
+                  mode="dual-lines"
+                />
               </ChartCard>
             </div>
+
+            <InsightCard insights={companyInsights} />
           </>
         )}
 
         {/* SALES & ACTIVITY SECTION */}
         {activeSection === 'sales' && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <MetricCard
-                label="Peak Hour"
-                value={`${hourlyDist.reduce((max, h) => h.count > max.count ? h : max, hourlyDist[0]).hour}:00`}
-                icon={Clock}
-                color="blue"
-              />
-              <MetricCard
-                label="Peak Hour Revenue"
-                value={formatPeso(hourlyDist.reduce((max, h) => h.revenue > max.revenue ? h : max, hourlyDist[0]).revenue)}
-                icon={TrendingUp}
-                color="green"
-              />
-              <MetricCard
-                label="Avg Hourly Transactions"
-                value={Math.floor(filteredTransactions.length / 24).toLocaleString()}
-                icon={Activity}
-                color="purple"
-              />
+            <div className="flex justify-end mb-4">
+              <div className="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-1">
+                <button
+                  onClick={() => setActivityView('hourly')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activityView === 'hourly' ? 'bg-blue-600 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                >
+                  Hourly
+                </button>
+                <button
+                  onClick={() => setActivityView('daily')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activityView === 'daily' ? 'bg-blue-600 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                >
+                  Daily
+                </button>
+              </div>
             </div>
 
+            {activityView === 'hourly' ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <MetricCard
+                  label="Peak Hour"
+                  value={formatHour12(peakHour.hour)}
+                  icon={Clock}
+                  color="blue"
+                />
+                <MetricCard
+                  label="Peak Hour Revenue"
+                  value={formatPeso(peakHourRevenue.revenue)}
+                  icon={TrendingUp}
+                  color="green"
+                />
+                <MetricCard
+                  label="Avg Hourly Transactions"
+                  value={avgHourlyTransactions.toFixed(1)}
+                  icon={Activity}
+                  color="purple"
+                />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <MetricCard
+                  label="Peak Day"
+                  value={peakDay.label || 'N/A'}
+                  icon={BarChart3}
+                  color="blue"
+                />
+                <MetricCard
+                  label="Peak Day Revenue"
+                  value={formatPeso(peakDayRevenue.revenue)}
+                  icon={TrendingUp}
+                  color="green"
+                />
+                <MetricCard
+                  label="Avg Daily Transactions"
+                  value={Math.floor(avgDailyTransactions).toLocaleString()}
+                  icon={Activity}
+                  color="purple"
+                />
+              </div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              <ChartCard title="Hourly Transaction Distribution" icon={Activity}>
-                <SimpleBarChart
-                  data={hourlyDist.map(h => ({
-                    label: `${h.hour}:00`,
-                    value: h.count,
-                  }))}
-                  dataKey="value"
-                  color="#f59e0b"
-                />
+              <ChartCard title={activityView === 'hourly' ? 'Hourly Transaction Distribution' : 'Daily Transaction Distribution'} icon={Activity}>
+                {activityView === 'hourly' ? (
+                  <SimpleBarChart
+                    data={hourlyDist.map(h => ({
+                      label: formatHour12(h.hour),
+                      value: h.count,
+                    }))}
+                    dataKey="value"
+                    color="#f59e0b"
+                    valueType="number"
+                    valueLabel="Transactions"
+                  />
+                ) : (
+                  <SimpleBarChart
+                    data={dailyActivity.map(d => ({
+                      label: d.label,
+                      value: d.count,
+                    }))}
+                    dataKey="value"
+                    color="#f59e0b"
+                    valueType="number"
+                    valueLabel="Transactions"
+                  />
+                )}
               </ChartCard>
-              <ChartCard title="Hourly Revenue" icon={TrendingUp}>
-                <SimpleBarChart
-                  data={hourlyDist.map(h => ({
-                    label: `${h.hour}:00`,
-                    value: h.revenue,
-                  }))}
-                  dataKey="value"
-                  color="#8b5cf6"
-                />
+              <ChartCard title={activityView === 'hourly' ? 'Hourly Revenue' : 'Daily Revenue'} icon={TrendingUp}>
+                {activityView === 'hourly' ? (
+                  <SimpleBarChart
+                    data={hourlyDist.map(h => ({
+                      label: formatHour12(h.hour),
+                      value: h.revenue,
+                    }))}
+                    dataKey="value"
+                    color="#8b5cf6"
+                    valueType="currency"
+                    valueLabel="Revenue"
+                  />
+                ) : (
+                  <SimpleBarChart
+                    data={dailyActivity.map(d => ({
+                      label: d.label,
+                      value: d.revenue,
+                    }))}
+                    dataKey="value"
+                    color="#8b5cf6"
+                    valueType="currency"
+                    valueLabel="Revenue"
+                  />
+                )}
               </ChartCard>
             </div>
 
             <ChartCard title="Activity Heatmap" icon={Zap}>
-              <HourlyHeatmapChart data={hourlyDist} />
+              <HourlyHeatmapChart
+                data={hourlyDist.map(h => ({
+                  ...h,
+                  hour: formatHour12(h.hour).replace(':00', ''),
+                }))}
+              />
             </ChartCard>
           </>
         )}
@@ -501,7 +709,7 @@ const CompanyAnalyticsDashboard = () => {
               />
               <MetricCard
                 label="Avg Quantity/Sale"
-                value={Math.floor(productAnalytics.reduce((sum, p) => sum + (p.quantity / p.transactions), 0) / Math.max(productAnalytics.length, 1))}
+                value={Math.floor(avgQuantityPerSale)}
                 icon={Package}
                 color="orange"
               />
@@ -515,26 +723,30 @@ const CompanyAnalyticsDashboard = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
               <ChartCard title="Top 10 Products by Revenue" icon={Package}>
-                <SimpleChart
+                <HorizontalBarChart
                   data={productAnalytics.slice(0, 10).map((p) => ({
-                    label: p.name.slice(0, 14),
-                    displayValue: `₱${(p.revenue / 1000).toFixed(1)}K`,
+                    label: p.name,
                     value: p.revenue,
+                    displayValue: `₱${p.revenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
                   }))}
-                  type="bar"
+                  dataKey="value"
+                  color="#3b82f6"
+                  labelKey="label"
                 />
               </ChartCard>
               <ChartCard title="Top 10 Products by Units Sold" icon={ShoppingCart}>
-                <SimpleChart
+                <HorizontalBarChart
                   data={[...productAnalytics]
                     .sort((a, b) => b.quantity - a.quantity)
                     .slice(0, 10)
                     .map((p) => ({
-                      label: p.name.slice(0, 14),
-                      displayValue: `${Math.floor(p.quantity)} units`,
+                      label: p.name,
                       value: p.quantity,
+                      displayValue: `${Math.floor(p.quantity).toLocaleString()} units`,
                     }))}
-                  type="bar"
+                  dataKey="value"
+                  color="#f59e0b"
+                  labelKey="label"
                 />
               </ChartCard>
             </div>
@@ -547,24 +759,68 @@ const CompanyAnalyticsDashboard = () => {
                     <tr>
                       <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-white">Product</th>
                       <th className="text-right py-3 px-4 font-semibold text-gray-900 dark:text-white">Units</th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-900 dark:text-white">% Units</th>
                       <th className="text-right py-3 px-4 font-semibold text-gray-900 dark:text-white">Revenue</th>
+                      <th className="text-right py-3 px-4 font-semibold text-gray-900 dark:text-white">% Revenue</th>
                       <th className="text-right py-3 px-4 font-semibold text-gray-900 dark:text-white">Transactions</th>
                       <th className="text-right py-3 px-4 font-semibold text-gray-900 dark:text-white">Avg Price</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {productAnalytics.map((p) => (
-                      <tr key={p.name} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                        <td className="py-3 px-4 text-gray-900 dark:text-white">{p.name}</td>
-                        <td className="text-right py-3 px-4 text-gray-600 dark:text-gray-400">{Math.floor(p.quantity)}</td>
-                        <td className="text-right py-3 px-4 font-semibold text-gray-900 dark:text-white">{formatPeso(p.revenue)}</td>
-                        <td className="text-right py-3 px-4 text-gray-600 dark:text-gray-400">{Math.floor(p.transactions)}</td>
-                        <td className="text-right py-3 px-4 text-gray-600 dark:text-gray-400">{formatPeso(p.revenue / p.quantity)}</td>
-                      </tr>
-                    ))}
+                    {(() => {
+                      const totalUnits = productAnalytics.reduce((sum, p) => sum + p.quantity, 0);
+                      const totalRevenue = productAnalytics.reduce((sum, p) => sum + p.revenue, 0);
+                      return productAnalytics
+                        .slice((productPage - 1) * productsPerPage, productPage * productsPerPage)
+                        .map((p) => {
+                          const percentUnits = totalUnits > 0 ? (p.quantity / totalUnits) * 100 : 0;
+                          const percentRevenue = totalRevenue > 0 ? (p.revenue / totalRevenue) * 100 : 0;
+                          return (
+                            <tr key={p.name} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                              <td className="py-3 px-4 text-gray-900 dark:text-white">{p.name}</td>
+                              <td className="text-right py-3 px-4 text-gray-600 dark:text-gray-400">{Math.floor(p.quantity).toLocaleString()}</td>
+                              <td className="text-right py-3 px-4 text-gray-600 dark:text-gray-400">{percentUnits.toFixed(1)}%</td>
+                              <td className="text-right py-3 px-4 font-semibold text-gray-900 dark:text-white">{formatPeso(p.revenue)}</td>
+                              <td className="text-right py-3 px-4 text-gray-600 dark:text-gray-400">{percentRevenue.toFixed(1)}%</td>
+                              <td className="text-right py-3 px-4 text-gray-600 dark:text-gray-400">{Math.floor(p.transactions).toLocaleString()}</td>
+                              <td className="text-right py-3 px-4 text-gray-600 dark:text-gray-400">{formatPeso(p.quantity > 0 ? p.revenue / p.quantity : 0)}</td>
+                            </tr>
+                          );
+                        });
+                    })()}
                   </tbody>
                 </table>
               </div>
+              {productAnalytics.length > productsPerPage && (
+                <div className="px-4 pt-4 flex flex-col md:flex-row md:items-center md:justify-between text-sm text-gray-600 dark:text-gray-400 gap-2">
+                  <span>
+                    {(() => {
+                      const start = (productPage - 1) * productsPerPage + 1;
+                      const end = Math.min(productPage * productsPerPage, productAnalytics.length);
+                      return `Showing ${start}-${end} of ${productAnalytics.length} products`;
+                    })()}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setProductPage((p) => Math.max(1, p - 1))}
+                      disabled={productPage === 1}
+                      className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span>
+                      {productPage} of {Math.ceil(productAnalytics.length / productsPerPage)}
+                    </span>
+                    <button
+                      onClick={() => setProductPage((p) => Math.min(Math.ceil(productAnalytics.length / productsPerPage), p + 1))}
+                      disabled={productPage === Math.ceil(productAnalytics.length / productsPerPage)}
+                      className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -605,9 +861,6 @@ const CompanyAnalyticsDashboard = () => {
                   <ShoppingCart className="w-5 h-5" />
                   Transaction History
                 </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Showing {paginatedTransactions.length} of {sortedTransactions.length} transactions
-                </p>
               </div>
 
               <div className="overflow-x-auto">
@@ -710,10 +963,14 @@ const CompanyAnalyticsDashboard = () => {
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Page {currentPage} of {totalPages}
-                  </div>
+                <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex flex-col md:flex-row md:items-center md:justify-between text-sm text-gray-600 dark:text-gray-400 gap-2">
+                  <span>
+                    {(() => {
+                      const start = (currentPage - 1) * itemsPerPage + 1;
+                      const end = Math.min(currentPage * itemsPerPage, sortedTransactions.length);
+                      return `Showing ${start}-${end} of ${sortedTransactions.length} transactions`;
+                    })()}
+                  </span>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
@@ -722,8 +979,8 @@ const CompanyAnalyticsDashboard = () => {
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
-                    <span className="text-sm text-gray-600 dark:text-gray-400 px-2">
-                      {currentPage}
+                    <span>
+                      {currentPage} of {totalPages}
                     </span>
                     <button
                       onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
@@ -739,12 +996,6 @@ const CompanyAnalyticsDashboard = () => {
           </>
         )}
 
-        {/* INSIGHTS & ALERTS SECTION */}
-        {activeSection === 'insights' && (
-          <>
-            <InsightCard insights={companyInsights} />
-          </>
-        )}
       </div>
 
       {/* Receipt Modal */}

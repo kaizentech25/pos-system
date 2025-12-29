@@ -21,7 +21,6 @@ export const SimpleLineChart = ({ data, title, dataKey, color = '#3b82f6' }) => 
   return (
     <ResponsiveContainer width="100%" height={300}>
       <LineChart data={data} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
         <XAxis dataKey="date" stroke="#9ca3af" style={{ fontSize: '12px' }} angle={angle} interval={interval} height={angle ? 48 : 24} tick={{ dy: angle ? 16 : 0 }} />
         <YAxis stroke="#9ca3af" style={{ fontSize: '12px' }} />
         <Tooltip content={<CustomTooltip />} />
@@ -66,13 +65,19 @@ export const SimpleAreaChart = ({ data, dataKey, color = '#8b5cf6' }) => {
   );
 };
 
-export const SimpleBarChart = ({ data, dataKey, color = '#10b981' }) => {
+export const SimpleBarChart = ({ data, dataKey, color = '#10b981', valueType = 'number', valueLabel = 'Value' }) => {
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload[0]) {
+      const raw = Number(payload[0].value);
+      const formatted = payload[0].payload.displayValue || (
+        valueType === 'currency'
+          ? `₱${raw.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          : raw.toLocaleString()
+      );
       return (
         <div className="bg-gray-900 p-3 rounded-lg border border-gray-700 text-white text-sm">
           <p className="font-semibold">{payload[0].payload.label}</p>
-          <p className="text-gray-300">Value: <span className="text-green-400">{payload[0].payload.displayValue || payload[0].value.toLocaleString()}</span></p>
+          <p className="text-gray-300">{valueLabel}: <span className="text-green-400">{formatted}</span></p>
         </div>
       );
     }
@@ -269,25 +274,51 @@ export const CombinedLineAreaChart = ({
 };
 
 export const HourlyHeatmapChart = ({ data }) => {
-  const maxCount = Math.max(...data.map(d => d.count));
-  
+  const safeData = data.map(d => ({
+    hour: d.hour,
+    count: Number(d.count) || 0,
+    revenue: Number(d.revenue) || 0,
+  }));
+  const maxCount = Math.max(1, ...safeData.map(d => d.count));
+  const cleanHour = (h) => typeof h === 'string' ? h.replace(':00', '') : h;
+  const formatCurrency = (amt) => `₱${Number(amt || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const [hoverInfo, setHoverInfo] = useState(null);
   return (
-    <div className="grid grid-cols-12 gap-1">
-      {data.map((hour, idx) => (
-        <div key={idx} className="flex flex-col items-center">
+    <div className="grid grid-cols-12 gap-2 sm:gap-3">
+      {safeData.map((hour, idx) => {
+        const intensity = maxCount ? (hour.count / maxCount) : 0;
+        return (
           <div
-            className="w-full aspect-square rounded-md transition-colors"
-            style={{
-              backgroundColor: `rgba(59, 130, 246, ${hour.count / maxCount})`,
-            }}
-            title={`${hour.hour}:00 - ${hour.count} transactions`}
-          />
-          <span className="text-xs text-gray-600 dark:text-gray-400 mt-1">{hour.hour}</span>
+            key={idx}
+            className="flex flex-col items-center relative p-0.5 sm:p-1"
+            onMouseEnter={(e) => setHoverInfo({ idx, x: e.clientX, y: e.clientY })}
+            onMouseMove={(e) => setHoverInfo({ idx, x: e.clientX, y: e.clientY })}
+            onMouseLeave={() => setHoverInfo(null)}
+          >
+            <div
+              className="w-full aspect-square rounded-md transition-all duration-150 hover:scale-105 hover:ring-2 hover:ring-blue-300/70"
+              style={{ backgroundColor: `rgba(59, 130, 246, ${intensity})` }}
+            />
+            <span className="text-xs text-gray-600 dark:text-gray-400 mt-1">{cleanHour(hour.hour)}</span>
+          </div>
+        );
+      })}
+      {hoverInfo && safeData[hoverInfo.idx] && (
+        <div
+          className="pointer-events-none fixed z-50"
+          style={{ left: hoverInfo.x + 12, top: hoverInfo.y + 12 }}
+        >
+          <div className="bg-gray-900 p-2 rounded-lg border border-gray-700 text-white text-xs shadow-lg whitespace-nowrap">
+            <div className="font-semibold">{cleanHour(safeData[hoverInfo.idx].hour)}</div>
+            <div className="text-gray-300">Transactions: <span className="text-amber-400">{Number(safeData[hoverInfo.idx].count).toLocaleString()}</span></div>
+            <div className="text-gray-300">Revenue: <span className="text-green-400">{formatCurrency(safeData[hoverInfo.idx].revenue)}</span></div>
+          </div>
         </div>
-      ))}
+      )}
     </div>
   );
 };
+
 
 export const HorizontalBarChart = ({ data, dataKey = 'value', color = '#3b82f6', labelKey = 'label' }) => {
   const totalValue = data.reduce((sum, item) => sum + item[dataKey], 0);
@@ -298,7 +329,7 @@ export const HorizontalBarChart = ({ data, dataKey = 'value', color = '#3b82f6',
       return (
         <div className="bg-gray-900 p-3 rounded-lg border border-gray-700 text-white text-sm">
           <p className="font-semibold">{payload[0].payload[labelKey]}</p>
-          <p className="text-gray-300">Value: <span className="text-green-400">{payload[0].payload.displayValue || payload[0].value.toLocaleString()}</span></p>
+          <p className="text-gray-300">Value: <span className="text-green-400">{payload[0].payload.displayValue || `₱${Number(payload[0].value).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}</span></p>
           <p className="text-gray-300">Market Share: <span className="text-blue-400">{percentage}%</span></p>
         </div>
       );

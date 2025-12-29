@@ -363,8 +363,6 @@ const MarketAnalyticsDashboard = () => {
           </>
         )}
 
-
-
         {/* MARKET SHARE SECTION */}
         {activeSection === 'market' && (
           <>
