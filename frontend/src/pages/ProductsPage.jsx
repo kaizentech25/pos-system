@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import Navbar from '../components/Navbar';
-import { Package, Plus, Filter, FileSearch } from 'lucide-react';
+import { Package, Plus, Filter, FileSearch, ChevronLeft, ChevronRight } from 'lucide-react';
 import axios from '../lib/axios';
 import toast from 'react-hot-toast';
 import InventoryStats from '../components/inventory/InventoryStats';
@@ -229,135 +229,138 @@ const ProductsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-base-200">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar />
 
-      <div className="container max-w-full mx-auto px-4 py-6">
+      <div className="max-w-full mx-auto px-4 md:px-6 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                <Package className="w-10 h-10" />
+                Inventory Management
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-2">Manage products, stock levels, and pricing</p>
+            </div>
+            <button 
+              onClick={openAddProductModal} 
+              className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-medium transition-colors flex items-center gap-2 w-fit"
+            >
+              <Plus size={20} />
+              Add Product
+            </button>
+          </div>
+        </div>
+
         {/* Stats Cards */}
         <InventoryStats products={products} />
 
         {/* Main Content Card */}
-        <div className="card bg-base-100 shadow-xl">
-          <div className="card-body">
-            {/* Toolbar */}
-            <div className="flex flex-col md:flex-row gap-4 mb-4">
-              {/* Search */}
-              <div className="flex-1">
-                <SearchBar
-                  value={search}
-                  onChange={val => { setSearch(val); setCurrentPage(1); }}
-                  placeholder="Search by name, SKU, or barcode..."
-                />
-              </div>
-
-              {/* Company Filter for Admin */}
-              {user?.role === 'admin' && (
-                <div className="relative w-full md:w-48">
-                  <select
-                    value={companyFilter}
-                    onChange={e => { setCompanyFilter(e.target.value); setCurrentPage(1); }}
-                    className="select select-bordered w-full pl-10"
-                  >
-                    <option value="">All Companies</option>
-                    {companyOptions.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                  <Filter size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                </div>
-              )}
-
-              {/* Category Filter */}
-              <div className="relative w-full md:w-48">
-                <select
-                  value={category}
-                  onChange={(e) => { setCategory(e.target.value); setCurrentPage(1); }}
-                  className="select select-bordered w-full pl-10"
-                >
-                  <option>All Categories</option>
-                  <option>Beverages</option>
-                  <option>Snacks</option>
-                  <option>Food</option>
-                  <option>Other</option>
-                </select>
-                <Filter size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-              </div>
-
-              {/* Stock Status Filter */}
-              <div className="relative w-full md:w-48">
-                <select
-                  value={stockStatus}
-                  onChange={(e) => { setStockStatus(e.target.value); setCurrentPage(1); }}
-                  className="select select-bordered w-full pl-10"
-                >
-                  <option value="All">All Stock Status</option>
-                  <option value="In Stock">In Stock</option>
-                  <option value="Low Stock">Low Stock</option>
-                  <option value="Out of Stock">Out of Stock</option>
-                </select>
-                <Filter size={20} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-              </div>
-
-              {/* Add Product Button */}
-              <button onClick={openAddProductModal} className="btn btn-primary gap-2">
-                <Plus size={20} />
-                Add Product
-              </button>
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow p-6">
+          {/* Toolbar */}
+          <div className="flex flex-col md:flex-row gap-3 mb-6">
+            {/* Search */}
+            <div className="flex-1">
+              <SearchBar
+                value={search}
+                onChange={val => { setSearch(val); setCurrentPage(1); }}
+                placeholder="Search by name, SKU, or barcode..."
+              />
             </div>
 
+            {/* Company Filter for Admin */}
+            {user?.role === 'admin' && (
+              <select
+                value={companyFilter}
+                onChange={e => { setCompanyFilter(e.target.value); setCurrentPage(1); }}
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+              >
+                <option value="">All Companies</option>
+                {companyOptions.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            )}
 
-            {/* Product Table with Pagination and Fixed Height for 10 rows */}
-            <div className="overflow-hidden" style={{ height: '600px' }}>
-              {paginatedProducts.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-base-content/60">
-                  <FileSearch size={48} className="mb-2" />
-                  <div className="text-lg font-semibold">No matching products</div>
-                  <div className="text-sm">Try a different search or filter.</div>
-                </div>
+            {/* Category Filter */}
+            <select
+              value={category}
+              onChange={(e) => { setCategory(e.target.value); setCurrentPage(1); }}
+              className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+            >
+              <option>All Categories</option>
+              <option>Beverages</option>
+              <option>Snacks</option>
+              <option>Food</option>
+              <option>Other</option>
+            </select>
+
+            {/* Stock Status Filter */}
+            <select
+              value={stockStatus}
+              onChange={(e) => { setStockStatus(e.target.value); setCurrentPage(1); }}
+              className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+            >
+              <option value="All">All Stock Status</option>
+              <option value="In Stock">In Stock</option>
+              <option value="Low Stock">Low Stock</option>
+              <option value="Out of Stock">Out of Stock</option>
+            </select>
+          </div>
+
+          {/* Product Table */}
+          <div className="overflow-hidden border border-gray-200 dark:border-gray-700 rounded-lg">
+            {paginatedProducts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-gray-500 dark:text-gray-400">
+                <FileSearch size={48} className="mb-2" />
+                <div className="text-lg font-semibold">No matching products</div>
+                <div className="text-sm">Try a different search or filter.</div>
+              </div>
+            ) : (
+              <ProductTable
+                products={paginatedProducts}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onStockAdjust={handleStockAdjust}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                searchTerm={searchLower}
+              />
+            )}
+          </div>
+
+          {/* Pagination Controls */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-4 gap-2 text-sm text-gray-600 dark:text-gray-400">
+            <div>
+              {filteredAndSortedProducts.length === 0 ? (
+                <>No products found</>
               ) : (
-                <ProductTable
-                  products={paginatedProducts}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  onStockAdjust={handleStockAdjust}
-                  sortConfig={sortConfig}
-                  onSort={handleSort}
-                  searchTerm={searchLower}
-                />
+                <>Showing <span className="font-semibold text-gray-900 dark:text-white">{((currentPage - 1) * itemsPerPage) + 1}</span>
+                <span className="mx-1">–</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{Math.min(currentPage * itemsPerPage, filteredAndSortedProducts.length)}</span>
+                <span className="mx-1">of</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{filteredAndSortedProducts.length}</span> products</>
               )}
             </div>
-            {/* Pagination Controls & Results Info */}
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-4 gap-2">
-              <div className="text-sm text-base-content/70">
-                {filteredAndSortedProducts.length === 0 ? (
-                  <>No products found</>
-                ) : (
-                  <>Showing <span className="font-semibold">{((currentPage - 1) * itemsPerPage) + 1}</span>
-                  <span className="mx-1">–</span>
-                  <span className="font-semibold">{Math.min(currentPage * itemsPerPage, filteredAndSortedProducts.length)}</span>
-                  <span className="mx-1">of</span>
-                  <span className="font-semibold">{filteredAndSortedProducts.length}</span> products</>
-                )}
-              </div>
-              <div className="flex justify-end items-center gap-2">
-                <button
-                  className="btn btn-sm btn-outline"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                >
-                  Prev
-                </button>
-                <span className="text-sm">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <button
-                  className="btn btn-sm btn-outline"
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                >
-                  Next
-                </button>
-              </div>
+            <div className="flex justify-end items-center gap-2">
+              <button
+                className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                {currentPage} of {totalPages}
+              </span>
+              <button
+                className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>

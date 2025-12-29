@@ -1,4 +1,4 @@
-import { Package, DollarSign, AlertTriangle, BarChart3, OctagonAlert } from 'lucide-react';
+import { Package, DollarSign, AlertTriangle, BarChart3 } from 'lucide-react';
 
 const InventoryStats = ({ products }) => {
   const stats = {
@@ -9,70 +9,53 @@ const InventoryStats = ({ products }) => {
     outOfStockItems: products.filter(p => p.stock === 0).length,
   };
 
-  const statCards = [
-    {
-      label: 'Total Products',
-      value: stats.totalProducts,
-      icon: Package,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-100',
-    },
-    {
-      label: 'Total Stock Units',
-      value: stats.totalStock.toLocaleString(),
-      icon: BarChart3,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-100',
-    },
-    {
-      label: 'Stock Value',
-      value: `₱${stats.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      icon: DollarSign,
-      color: 'text-green-600',
-      bgColor: 'bg-green-100',
-    },
-    {
-      label: 'Stock Alerts',
-      type: 'dual',
-      items: [
-        { label: 'Low Stock', value: stats.lowStockItems, icon: AlertTriangle, color: 'text-orange-600' },
-        { label: 'Out of Stock', value: stats.outOfStockItems, icon: OctagonAlert, color: 'text-red-600' },
-      ],
-    },
-  ];
+  const colorStyles = {
+    blue: 'text-blue-600 dark:text-blue-400',
+    purple: 'text-purple-600 dark:text-purple-400',
+    green: 'text-green-600 dark:text-green-400',
+    orange: 'text-orange-600 dark:text-orange-400',
+  };
+
+  const StatCard = ({ label, value, icon: Icon, color }) => {
+    return (
+      <div className="rounded-lg p-6 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">{label}</p>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">{value}</p>
+          </div>
+          <Icon className={`w-8 h-8 ${colorStyles[color]} flex-shrink-0 mt-1 opacity-80`} />
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      {statCards.map((stat, index) => {
-        if (stat.type === 'dual') {
-          return (
-            <div key={index} className="grid grid-cols-2 gap-4">
-              {stat.items.map((item, itemIndex) => (
-                <div key={itemIndex} className="stats shadow bg-base-100">
-                  <div className="stat">
-                    <div className={`stat-figure ${item.color}`}>
-                      <item.icon size={32} />
-                    </div>
-                    <div className="stat-title text-base-content/70">{item.label}</div>
-                    <div className="stat-value text-2xl lg:text-3xl">{item.value}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          );
-        }
-        return (
-          <div key={index} className="stats shadow bg-base-100">
-            <div className="stat">
-              <div className={`stat-figure ${stat.color}`}>
-                <stat.icon size={32} />
-              </div>
-              <div className="stat-title text-base-content/70">{stat.label}</div>
-              <div className="stat-value text-2xl lg:text-3xl">{stat.value}</div>
-            </div>
-          </div>
-        );
-      })}
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <StatCard
+        label="Total Products"
+        value={stats.totalProducts}
+        icon={Package}
+        color="blue"
+      />
+      <StatCard
+        label="Total Stock Units"
+        value={stats.totalStock.toLocaleString()}
+        icon={BarChart3}
+        color="purple"
+      />
+      <StatCard
+        label="Stock Value"
+        value={`₱${stats.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+        icon={DollarSign}
+        color="green"
+      />
+      <StatCard
+        label="Stock Alerts"
+        value={stats.lowStockItems + stats.outOfStockItems}
+        icon={AlertTriangle}
+        color="orange"
+      />
     </div>
   );
 };

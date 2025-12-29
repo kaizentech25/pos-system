@@ -6,7 +6,7 @@ const highlight = (text, searchTerm) => {
   if (idx === -1) return text;
   return <>
     {text.slice(0, idx)}
-    <span className="bg-yellow-200 text-yellow-900">{text.slice(idx, idx + searchTerm.length)}</span>
+    <span className="bg-yellow-300 dark:bg-yellow-600 text-gray-900 dark:text-white font-semibold">{text.slice(idx, idx + searchTerm.length)}</span>
     {text.slice(idx + searchTerm.length)}
   </>;
 };
@@ -19,12 +19,12 @@ const ProductTable = ({ products, onEdit, onDelete, onStockAdjust, sortConfig, o
 
   const getStockBadge = (product) => {
     if (product.stock === 0) {
-      return <div className="badge badge-error badge-sm">Out of Stock</div>;
+      return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800">Out of Stock</span>;
     }
     if (product.stock <= product.lowStockAlert) {
-      return <div className="badge badge-warning badge-sm">Low Stock</div>;
+      return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800">Low Stock</span>;
     }
-    return <div className="badge badge-success badge-sm">In Stock</div>;
+    return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800">In Stock</span>;
   };
 
   const getMargin = (product) => {
@@ -38,128 +38,124 @@ const ProductTable = ({ products, onEdit, onDelete, onStockAdjust, sortConfig, o
 
   return (
     <div className="overflow-x-auto">
-      <table className="table table-zebra">
-        <thead>
+      <table className="w-full text-sm">
+        <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
           <tr>
             <th
               onClick={() => onSort('name')}
-              className="cursor-pointer hover:bg-base-200"
+              className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-gray-300 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
             >
               <div className="flex items-center gap-1">
                 Product {getSortIcon('name')}
               </div>
             </th>
-            <th>SKU / Barcode</th>
+            <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-gray-300">SKU / Barcode</th>
             <th
               onClick={() => onSort('price')}
-              className="cursor-pointer hover:bg-base-200"
+              className="text-right py-3 px-4 font-semibold text-gray-900 dark:text-gray-300 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
             >
-              <div className="flex items-center gap-1">
+              <div className="flex items-center justify-end gap-1">
                 Price {getSortIcon('price')}
               </div>
             </th>
             <th
               onClick={() => onSort('stock')}
-              className="cursor-pointer hover:bg-base-200"
+              className="text-right py-3 px-4 font-semibold text-gray-900 dark:text-gray-300 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
             >
-              <div className="flex items-center gap-1">
+              <div className="flex items-center justify-end gap-1">
                 Stock {getSortIcon('stock')}
               </div>
             </th>
-            <th>Stock Value</th>
-            <th>Margin</th>
+            <th className="text-right py-3 px-4 font-semibold text-gray-900 dark:text-gray-300">Stock Value</th>
+            <th className="text-right py-3 px-4 font-semibold text-gray-900 dark:text-gray-300">Margin</th>
             <th
               onClick={() => onSort('category')}
-              className="cursor-pointer hover:bg-base-200"
+              className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-gray-300 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
             >
               <div className="flex items-center gap-1">
                 Category {getSortIcon('category')}
               </div>
             </th>
-            <th>Actions</th>
+            <th className="text-center py-3 px-4 font-semibold text-gray-900 dark:text-gray-300">Actions</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
           {products.length === 0 ? (
             <tr>
-              <td colSpan="8" className="text-center py-8 text-base-content/50">
+              <td colSpan="8" className="text-center py-8 text-gray-500 dark:text-gray-500">
                 No products found
               </td>
             </tr>
           ) : (
             products.map((product) => (
-              <tr key={product._id} className="hover">
-                <td>
-                  <div className="font-semibold">{highlight(product.name, searchTerm)}</div>
-                  <div className="mt-1">{getStockBadge(product)}</div>
+              <tr key={product._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <td className="py-3 px-4">
+                  <div className="font-semibold text-gray-900 dark:text-white">{highlight(product.name, searchTerm)}</div>
+                  <div className="mt-2">{getStockBadge(product)}</div>
                 </td>
-                <td>
-                  <div className="font-mono text-sm">{highlight(product.sku, searchTerm)}</div>
-                  <div className="text-xs opacity-70">{highlight(product.barcode, searchTerm)}</div>
+                <td className="py-3 px-4">
+                  <div className="font-mono text-xs text-gray-600 dark:text-gray-400">{highlight(product.sku, searchTerm)}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-600">{highlight(product.barcode, searchTerm)}</div>
                 </td>
-                <td>
-                  <div className="font-semibold">₱{product.price.toFixed(2)}</div>
-                  <div className="text-xs opacity-70">Cost: ₱{product.cost.toFixed(2)}</div>
+                <td className="text-right py-3 px-4">
+                  <div className="font-semibold text-gray-900 dark:text-white">₱{product.price.toFixed(2)}</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">Cost: ₱{product.cost.toFixed(2)}</div>
                 </td>
-                <td>
+                <td className="text-right py-3 px-4">
                   <div className={`font-bold ${
-                    product.stock === 0 ? 'text-error' : 
-                    product.stock <= product.lowStockAlert ? 'text-warning' : 
-                    'text-success'
+                    product.stock === 0 ? 'text-red-600 dark:text-red-400' : 
+                    product.stock <= product.lowStockAlert ? 'text-orange-600 dark:text-orange-400' : 
+                    'text-green-600 dark:text-green-400'
                   }`}>
                     {product.stock}
                   </div>
                 </td>
-                <td>
-                  <div className="font-mono text-sm">₱{getStockValue(product)}</div>
-                </td>
-                <td>
+                <td className="text-right py-3 px-4 font-mono text-sm text-gray-900 dark:text-white">₱{getStockValue(product)}</td>
+                <td className="text-right py-3 px-4">
                   <div className={`font-semibold ${
-                    getMargin(product) > 30 ? 'text-success' :
-                    getMargin(product) > 15 ? 'text-info' :
-                    'text-warning'
+                    getMargin(product) > 30 ? 'text-green-600 dark:text-green-400' :
+                    getMargin(product) > 15 ? 'text-blue-600 dark:text-blue-400' :
+                    'text-orange-600 dark:text-orange-400'
                   }`}>
                     {getMargin(product)}%
                   </div>
                 </td>
-                <td>
-                  <div className="badge badge-outline badge-sm">{product.category}</div>
+                <td className="py-3 px-4">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                    {product.category}
+                  </span>
                 </td>
-                <td>
-                  <div className="flex items-center gap-1">
-                    <div className="tooltip" data-tip="Stock In">
-                      <button
-                        onClick={() => onStockAdjust(product, 'in')}
-                        className="btn btn-xs btn-success btn-outline"
-                      >
-                        <TrendingUp size={14} />
-                      </button>
-                    </div>
-                    <div className="tooltip" data-tip="Stock Out">
-                        <button
-                          onClick={() => onStockAdjust(product, 'out')}
-                          className="btn btn-xs mr-2 btn-error btn-outline"
-                          disabled={product.stock === 0}
-                        >
-                          <TrendingDown size={14} />
-                        </button>
-                    </div>
-                    <div className="tooltip" data-tip="Edit">
-                      <button
-                        onClick={() => onEdit(product)}
-                        className="btn btn-xs btn-ghost p-1"
-                      >
-                        <Edit size={14} />
-                      </button>
-                    </div>
-                    <div className="tooltip" data-tip="Delete">
-                      <button
-                        onClick={() => onDelete(product._id)}
-                        className="btn btn-xs btn-ghost p-1 text-error"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+                <td className="text-center py-3 px-4">
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => onStockAdjust(product, 'in')}
+                      title="Stock In"
+                      className="p-1.5 rounded-lg bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors"
+                    >
+                      <TrendingUp size={16} />
+                    </button>
+                    <button
+                      onClick={() => onStockAdjust(product, 'out')}
+                      title="Stock Out"
+                      className="p-1.5 rounded-lg bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      disabled={product.stock === 0}
+                    >
+                      <TrendingDown size={16} />
+                    </button>
+                    <button
+                      onClick={() => onEdit(product)}
+                      title="Edit"
+                      className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                    >
+                      <Edit size={16} />
+                    </button>
+                    <button
+                      onClick={() => onDelete(product._id)}
+                      title="Delete"
+                      className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-500 transition-colors"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
                 </td>
               </tr>
