@@ -65,6 +65,7 @@ const CompanyAnalyticsDashboard = () => {
   });
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('7d');
+  const [anchorTime, setAnchorTime] = useState(() => Date.now());
 
   // Receipt modal state
   const [selectedReceipt, setSelectedReceipt] = useState(null);
@@ -104,6 +105,7 @@ const CompanyAnalyticsDashboard = () => {
         products: products,
         transactions: companyTransactions,
       });
+      setAnchorTime(Date.now());
     } catch (error) {
       console.error('Error fetching company data:', error);
     } finally {
@@ -131,8 +133,8 @@ const CompanyAnalyticsDashboard = () => {
     return formatTime12h(dateString);
   };
 
-  const getTimeRangeStart = () => {
-    const now = new Date();
+  const getTimeRangeStart = (anchor) => {
+    const now = anchor ? new Date(anchor) : new Date();
     switch (timeRange) {
       case '24h':
         return new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -147,13 +149,15 @@ const CompanyAnalyticsDashboard = () => {
     }
   };
 
+  const timeRangeStart = useMemo(() => getTimeRangeStart(anchorTime), [timeRange, anchorTime]);
+
   // COMPANY-SCOPED DATA ONLY
   const filteredTransactions = useMemo(() => {
     return stats.transactions.filter((t) => {
       const created = new Date(t.createdAt);
-      return created >= getTimeRangeStart();
+      return created >= timeRangeStart;
     });
-  }, [stats.transactions, timeRange]);
+  }, [stats.transactions, timeRangeStart]);
 
   const trendDays = useMemo(() => {
     switch (timeRange) {
@@ -176,7 +180,7 @@ const CompanyAnalyticsDashboard = () => {
   }, [timeRange, filteredTransactions]);
 
   // Analytics: FOR THIS COMPANY ONLY
-  const revenueTrend = useMemo(() => calculateRevenueTrend(filteredTransactions, trendDays), [filteredTransactions, trendDays]);
+  const revenueTrend = useMemo(() => calculateRevenueTrend(filteredTransactions, trendDays, anchorTime, timeRange), [filteredTransactions, trendDays, anchorTime, timeRange]);
   const hourlyDist = useMemo(() => calculateHourlyDistribution(filteredTransactions), [filteredTransactions]);
   const productAnalytics = useMemo(() => calculateProductAnalytics(filteredTransactions), [filteredTransactions]);
   const companyInsights = useMemo(() => generateInsights(filteredTransactions, [user?.company_name], stats.products, timeRange), [filteredTransactions, user?.company_name, stats.products, timeRange]);
@@ -191,17 +195,66 @@ const CompanyAnalyticsDashboard = () => {
   }, [filteredTransactions, totalRevenue]);
 
   const prevRevenue = useMemo(() => {
-    const prevStart = new Date(getTimeRangeStart());
-    prevStart.setDate(prevStart.getDate() - (timeRange === '24h' ? 1 : timeRange === '7d' ? 7 : 30));
+    // Don't calculate comparison for 'all' time range
+    if (timeRange === 'all') return null;
+    
+    const prevStart = new Date(timeRangeStart);
+    const daysToSubtract = timeRange === '24h' ? 1 : timeRange === '7d' ? 7 : 30;
+    prevStart.setDate(prevStart.getDate() - daysToSubtract);
+    
     return stats.transactions
       .filter(t => {
         const created = new Date(t.createdAt);
-        return created >= prevStart && created < getTimeRangeStart();
+        return created >= prevStart && created < timeRangeStart;
       })
       .reduce((sum, t) => sum + (t.totalAmount || t.total || 0), 0);
-  }, [stats.transactions, timeRange]);
+  }, [stats.transactions, timeRange, timeRangeStart]);
 
-  const revenueGrowth = useMemo(() => calculateGrowth(totalRevenue, prevRevenue), [totalRevenue, prevRevenue]);
+  const prevTransactionCount = useMemo(() => {
+    // Don't calculate comparison for 'all' time range
+    if (timeRange === 'all') return null;
+    
+    const prevStart = new Date(timeRangeStart);
+    const daysToSubtract = timeRange === '24h' ? 1 : timeRange === '7d' ? 7 : 30;
+    prevStart.setDate(prevStart.getDate() - daysToSubtract);
+    
+    return stats.transactions.filter(t => {
+      const created = new Date(t.createdAt);
+      return created >= prevStart && created < timeRangeStart;
+    }).length;
+  }, [stats.transactions, timeRange, timeRangeStart]);
+
+  const revenueGrowth = useMemo(() => {
+    if (prevRevenue === null) return null;
+    return calculateGrowth(totalRevenue, prevRevenue);
+  }, [totalRevenue, prevRevenue]);
+
+  const transactionGrowth = useMemo(() => {
+    if (prevTransactionCount === null) return null;
+    return calculateGrowth(filteredTransactions.length, prevTransactionCount);
+  }, [filteredTransactions.length, prevTransactionCount]);
+
+  const prevAverageTransaction = useMemo(() => {
+    if (timeRange === 'all') return null;
+    if (!prevTransactionCount || prevTransactionCount === 0) return null;
+    if (prevRevenue === null) return null;
+    return prevRevenue / prevTransactionCount;
+  }, [timeRange, prevTransactionCount, prevRevenue]);
+
+  const avgTransactionGrowth = useMemo(() => {
+    if (prevAverageTransaction === null) return null;
+    return calculateGrowth(avgTransaction, prevAverageTransaction);
+  }, [avgTransaction, prevAverageTransaction]);
+
+  const comparisonLabel = useMemo(() => {
+    switch (timeRange) {
+      case '24h': return 'vs previous 24h';
+      case '7d': return 'vs previous week';
+      case '30d': return 'vs previous 30 days';
+      case 'all': return '';
+      default: return 'vs previous period';
+    }
+  }, [timeRange]);
 
   // Transaction table helpers
   const handleSort = (field) => {
@@ -344,19 +397,23 @@ const CompanyAnalyticsDashboard = () => {
                 label="Total Revenue"
                 value={formatPeso(totalRevenue)}
                 change={revenueGrowth}
+                changeLabel={comparisonLabel}
                 icon={TrendingUp}
                 color="green"
               />
               <MetricCard
                 label="Transactions"
                 value={filteredTransactions.length.toLocaleString()}
-                change={calculateGrowth(filteredTransactions.length, prevRevenue / (avgTransaction || 1))}
+                change={transactionGrowth}
+                changeLabel={comparisonLabel}
                 icon={ShoppingCart}
                 color="blue"
               />
               <MetricCard
                 label="Average Order Value"
                 value={formatPeso(avgTransaction)}
+                change={avgTransactionGrowth}
+                changeLabel={comparisonLabel}
                 icon={Target}
                 color="purple"
               />

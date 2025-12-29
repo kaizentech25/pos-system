@@ -1,6 +1,6 @@
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
-export const MetricCard = ({ label, value, change, icon: Icon, color = 'blue' }) => {
+export const MetricCard = ({ label, value, change, changeLabel, icon: Icon, color = 'blue' }) => {
   const isPositive = change >= 0;
   const colorMap = {
     blue: 'text-blue-500',
@@ -19,7 +19,7 @@ export const MetricCard = ({ label, value, change, icon: Icon, color = 'blue' })
         </div>
         {Icon && <Icon className={`w-8 h-8 ${colorMap[color]}`} />}
       </div>
-      {change !== undefined && (
+      {change !== undefined && change !== null && (
         <div className="flex items-center gap-1 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
           {isPositive ? (
             <TrendingUp className="w-4 h-4 text-green-500" />
@@ -29,7 +29,7 @@ export const MetricCard = ({ label, value, change, icon: Icon, color = 'blue' })
           <span className={isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
             {isPositive ? '+' : ''}{change.toFixed(1)}%
           </span>
-          <span className="text-xs text-gray-500 dark:text-gray-400">vs last week</span>
+          {changeLabel && <span className="text-xs text-gray-500 dark:text-gray-400">{changeLabel}</span>}
         </div>
       )}
     </div>

@@ -9,7 +9,7 @@ import {
 } from '../lib/analyticsUtils';
 import { MetricCard, ChartCard, InsightCard, SimpleChart, LoadingSkeleton } from '../components/DashboardComponents';
 import {
-  SimpleLineChart, SimplePieChart
+  SimpleLineChart, SimplePieChart, SimpleAreaChart, CombinedLineAreaChart, HorizontalBarChart
 } from '../components/Charts';
 
 /**
@@ -30,7 +30,6 @@ const MarketAnalyticsDashboard = () => {
     { key: 'overview', label: '📊 Platform Overview' },
     { key: 'revenue', label: '💰 Revenue Trends' },
     { key: 'market', label: '📈 Market Share' },
-    { key: 'insights', label: '💡 Platform Insights' },
   ];
 
   const [activeSection, setActiveSection] = useState('overview');
@@ -40,6 +39,7 @@ const MarketAnalyticsDashboard = () => {
   });
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('7d');
+  const [anchorTime, setAnchorTime] = useState(() => Date.now());
 
   useEffect(() => {
     fetchPlatformData();
@@ -64,6 +64,7 @@ const MarketAnalyticsDashboard = () => {
         transactions,
         companies,
       });
+      setAnchorTime(Date.now());
     } catch (error) {
       console.error('Error fetching platform data:', error);
     } finally {
@@ -75,8 +76,8 @@ const MarketAnalyticsDashboard = () => {
     return '₱' + amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
-  const getTimeRangeStart = () => {
-    const now = new Date();
+  const getTimeRangeStart = (anchor) => {
+    const now = anchor ? new Date(anchor) : new Date();
     switch (timeRange) {
       case '24h':
         return new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -91,13 +92,15 @@ const MarketAnalyticsDashboard = () => {
     }
   };
 
+  const timeRangeStart = useMemo(() => getTimeRangeStart(anchorTime), [timeRange, anchorTime]);
+
   // AGGREGATED DATA ONLY - No company filtering
   const filteredTransactions = useMemo(() => {
     return stats.transactions.filter((t) => {
       const created = new Date(t.createdAt);
-      return created >= getTimeRangeStart();
+      return created >= timeRangeStart;
     });
-  }, [stats.transactions, timeRange]);
+  }, [stats.transactions, timeRangeStart]);
 
   const trendDays = useMemo(() => {
     switch (timeRange) {
@@ -120,7 +123,7 @@ const MarketAnalyticsDashboard = () => {
   }, [timeRange, filteredTransactions]);
 
   // Analytics: AGGREGATED ACROSS ALL COMPANIES
-  const revenueTrend = useMemo(() => calculateRevenueTrend(filteredTransactions, trendDays), [filteredTransactions, trendDays]);
+  const revenueTrend = useMemo(() => calculateRevenueTrend(filteredTransactions, trendDays, anchorTime, timeRange), [filteredTransactions, trendDays, anchorTime, timeRange]);
   const companyStats = useMemo(() => calculateCompanyComparison(filteredTransactions, stats.companies), [filteredTransactions, stats.companies]);
   const platformInsights = useMemo(() => generateInsights(filteredTransactions, stats.companies, [], timeRange), [filteredTransactions, stats.companies, timeRange]);
 
@@ -138,17 +141,66 @@ const MarketAnalyticsDashboard = () => {
   }, [totalTransactions, totalRevenue]);
 
   const prevRevenue = useMemo(() => {
-    const prevStart = new Date(getTimeRangeStart());
-    prevStart.setDate(prevStart.getDate() - (timeRange === '24h' ? 1 : timeRange === '7d' ? 7 : 30));
+    // Don't calculate comparison for 'all' time range
+    if (timeRange === 'all') return null;
+    
+    const prevStart = new Date(timeRangeStart);
+    const daysToSubtract = timeRange === '24h' ? 1 : timeRange === '7d' ? 7 : 30;
+    prevStart.setDate(prevStart.getDate() - daysToSubtract);
+    
     return stats.transactions
       .filter(t => {
         const created = new Date(t.createdAt);
-        return created >= prevStart && created < getTimeRangeStart();
+        return created >= prevStart && created < timeRangeStart;
       })
       .reduce((sum, t) => sum + (t.totalAmount || t.total || 0), 0);
-  }, [stats.transactions, timeRange]);
+  }, [stats.transactions, timeRange, timeRangeStart]);
 
-  const revenueGrowth = useMemo(() => calculateGrowth(totalRevenue, prevRevenue), [totalRevenue, prevRevenue]);
+  const prevTransactionCount = useMemo(() => {
+    // Don't calculate comparison for 'all' time range
+    if (timeRange === 'all') return null;
+    
+    const prevStart = new Date(timeRangeStart);
+    const daysToSubtract = timeRange === '24h' ? 1 : timeRange === '7d' ? 7 : 30;
+    prevStart.setDate(prevStart.getDate() - daysToSubtract);
+    
+    return stats.transactions.filter(t => {
+      const created = new Date(t.createdAt);
+      return created >= prevStart && created < timeRangeStart;
+    }).length;
+  }, [stats.transactions, timeRange, timeRangeStart]);
+
+  const revenueGrowth = useMemo(() => {
+    if (prevRevenue === null) return null;
+    return calculateGrowth(totalRevenue, prevRevenue);
+  }, [totalRevenue, prevRevenue]);
+
+  const transactionGrowth = useMemo(() => {
+    if (prevTransactionCount === null) return null;
+    return calculateGrowth(totalTransactions, prevTransactionCount);
+  }, [totalTransactions, prevTransactionCount]);
+
+  const prevAverageTransactionValue = useMemo(() => {
+    if (timeRange === 'all') return null;
+    if (!prevTransactionCount || prevTransactionCount === 0) return null;
+    if (prevRevenue === null) return null;
+    return prevRevenue / prevTransactionCount;
+  }, [timeRange, prevTransactionCount, prevRevenue]);
+
+  const avgTransactionGrowth = useMemo(() => {
+    if (prevAverageTransactionValue === null) return null;
+    return calculateGrowth(avgTransactionValue, prevAverageTransactionValue);
+  }, [avgTransactionValue, prevAverageTransactionValue]);
+
+  const comparisonLabel = useMemo(() => {
+    switch (timeRange) {
+      case '24h': return 'vs previous 24h';
+      case '7d': return 'vs previous week';
+      case '30d': return 'vs previous 30 days';
+      case 'all': return '';
+      default: return 'vs previous period';
+    }
+  }, [timeRange]);
 
   // Market share: TOP 5 COMPANIES
   const marketShareData = useMemo(() => {
@@ -157,9 +209,10 @@ const MarketAnalyticsDashboard = () => {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5)
       .map(c => ({
-        name: c.name.slice(0, 12),
+        name: c.name,
         value: total ? Math.round((c.revenue / total) * 100) : 0,
-      }));
+      }))
+      .filter(c => c.value > 0); // Hide companies with 0% share
   }, [companyStats]);
 
   if (loading) {
@@ -222,18 +275,23 @@ const MarketAnalyticsDashboard = () => {
                 label="Total Platform Revenue"
                 value={formatPeso(totalRevenue)}
                 change={revenueGrowth}
+                changeLabel={comparisonLabel}
                 icon={TrendingUp}
                 color="green"
               />
               <MetricCard
                 label="Total Transactions"
                 value={totalTransactions.toLocaleString()}
+                change={transactionGrowth}
+                changeLabel={comparisonLabel}
                 icon={Activity}
                 color="blue"
               />
               <MetricCard
                 label="Average Transaction Value"
                 value={formatPeso(avgTransactionValue)}
+                change={avgTransactionGrowth}
+                changeLabel={comparisonLabel}
                 icon={Award}
                 color="purple"
               />
@@ -246,23 +304,21 @@ const MarketAnalyticsDashboard = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              <ChartCard title="Revenue Trend (Aggregated)" icon={TrendingUp}>
-                <SimpleLineChart data={revenueTrend} dataKey="revenue" color="#3b82f6" />
-              </ChartCard>
               <ChartCard title="Market Share (Top 5)" icon={BarChart3}>
-                <SimplePieChart data={marketShareData} />
+                <SimplePieChart data={marketShareData} isDoughnut={true} />
               </ChartCard>
+              <InsightCard insights={platformInsights} />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-1 gap-6 mb-8">
-              <ChartCard title="Daily Transaction Volume (Platform)" icon={Activity}>
-                <SimpleChart
-                  data={revenueTrend.map(d => ({
-                    label: d.date,
-                    displayValue: d.transactions.toLocaleString(),
-                    value: d.transactions,
-                  }))}
-                  type="bar"
+            <div className="grid grid-cols-1 gap-6 mb-8">
+              <ChartCard title="Revenue & Transactions" icon={TrendingUp}>
+                <CombinedLineAreaChart
+                  data={revenueTrend}
+                  lineKey="revenue"
+                  areaKey="transactions"
+                  lineColor="#3b82f6"
+                  areaColor="#f59e0b"
+                  mode="dual-lines"
                 />
               </ChartCard>
             </div>
@@ -275,13 +331,13 @@ const MarketAnalyticsDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
               <MetricCard
                 label="Highest Revenue Day"
-                value={formatPeso(Math.max(...revenueTrend.map(d => d.revenue), 0))}
+                value={formatPeso(revenueTrend.length > 0 ? Math.max(...revenueTrend.map(d => d.revenue)) : 0)}
                 icon={TrendingUp}
                 color="green"
               />
               <MetricCard
                 label="Lowest Revenue Day"
-                value={formatPeso(Math.min(...revenueTrend.filter(d => d.revenue > 0).map(d => d.revenue), 0))}
+                value={formatPeso(revenueTrend.filter(d => d.revenue > 0).length > 0 ? Math.min(...revenueTrend.filter(d => d.revenue > 0).map(d => d.revenue)) : 0)}
                 icon={TrendingUp}
                 color="orange"
               />
@@ -301,7 +357,7 @@ const MarketAnalyticsDashboard = () => {
 
             <div className="grid grid-cols-1 gap-6 mb-8">
               <ChartCard title="Revenue Trend Analysis" icon={TrendingUp}>
-                <SimpleLineChart data={revenueTrend} dataKey="revenue" color="#10b981" />
+                <SimpleAreaChart data={revenueTrend} dataKey="revenue" color="#10b981" />
               </ChartCard>
             </div>
           </>
@@ -314,19 +370,21 @@ const MarketAnalyticsDashboard = () => {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               <ChartCard title="Revenue Distribution by Company" icon={TrendingUp}>
-                <SimpleChart
+                <HorizontalBarChart
                   data={Object.values(companyStats)
                     .sort((a, b) => b.revenue - a.revenue)
                     .map(c => ({
-                      label: c.name.slice(0, 14),
+                      label: c.name,
                       displayValue: formatPeso(c.revenue),
                       value: c.revenue,
                     }))}
-                  type="bar"
+                  dataKey="value"
+                  labelKey="label"
+                  color="#3b82f6"
                 />
               </ChartCard>
               <ChartCard title="Market Share Distribution" icon={BarChart3}>
-                <SimplePieChart data={marketShareData} />
+                <SimplePieChart data={marketShareData} isDoughnut={true} />
               </ChartCard>
             </div>
 
@@ -367,12 +425,7 @@ const MarketAnalyticsDashboard = () => {
           </>
         )}
 
-        {/* PLATFORM INSIGHTS SECTION */}
-        {activeSection === 'insights' && (
-          <>
-            <InsightCard insights={platformInsights} />
-          </>
-        )}
+
       </div>
     </div>
   );

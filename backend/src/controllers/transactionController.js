@@ -123,14 +123,33 @@ export const getDashboardStats = async (req, res) => {
     const todaySales = todayTransactions.reduce((sum, t) => sum + t.total, 0);
     const transactionCount = todayTransactions.length;
 
-    const productQuery = { $expr: { $lte: ['$stock', '$lowStockAlert'] } };
+    // Low stock products with company filter
+    // Use aggregation to compare stock with lowStockAlert field
+    // This includes out of stock (stock = 0) and low stock items
+    const lowStockPipeline = [
+      {
+        $match: {
+          $expr: { $lte: ['$stock', '$lowStockAlert'] }
+        }
+      }
+    ];
+    
     if (company_name) {
-      productQuery.company_name = company_name;
+      lowStockPipeline[0].$match = {
+        company_name,
+        $expr: { $lte: ['$stock', '$lowStockAlert'] }
+      };
     }
 
-    const lowStockProducts = await Product.find(productQuery);
+    const lowStockProducts = await Product.aggregate(lowStockPipeline);
+    const lowStockCount = lowStockProducts.length;
+    
+    // Active products (stock > 0) with company filter
+    const activeProductsQuery = { stock: { $gt: 0 } };
+    if (company_name) {
+      activeProductsQuery.company_name = company_name;
+    }
 
-    const activeProductsQuery = company_name ? { company_name } : {};
     const activeProducts = await Product.countDocuments(activeProductsQuery);
 
     res.status(200).json({
@@ -138,7 +157,7 @@ export const getDashboardStats = async (req, res) => {
       data: {
         todaySales,
         transactions: transactionCount,
-        lowStockItems: lowStockProducts.length,
+        lowStockItems: lowStockCount,
         activeProducts,
       },
     });

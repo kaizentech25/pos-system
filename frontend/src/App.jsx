@@ -87,7 +87,7 @@ const AppRoutes = () => {
                 <Navigate
                   to={
                     {
-                      admin: '/system-monitoring',
+                      admin: '/dashboard',
                       manager: '/dashboard',
                       inventory_manager: '/products',
                       cashier: '/pos',
