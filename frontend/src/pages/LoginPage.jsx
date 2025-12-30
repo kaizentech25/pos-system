@@ -157,12 +157,11 @@ const LoginPage = () => {
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Demo credentials (7 Eleven Jimenez):</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Demo credentials - Luna Mart</p>
             <div className="text-xs text-gray-800 dark:text-gray-300 space-y-1">
-              <div><span className="font-medium">Admin:</span> ADMIN-00000-000 / admin123</div>
-              <div><span className="font-medium">Manager:</span> 7EJ-MGR-001 / manager123</div>
-              <div><span className="font-medium">Inventory:</span> 7EJ-INV-001 / inventory123</div>
-              <div><span className="font-medium">Cashier:</span> 7EJ-CSH-001 / cashier123</div>
+              <div><span className="font-medium">Manager:</span> LNM-MGR-001 / manager123</div>
+              <div><span className="font-medium">Inventory:</span> LNM-INV-001 / inventory123</div>
+              <div><span className="font-medium">Cashier:</span> LNM-CSH-001 / cashier123</div>
             </div>
           </div>
         </div>

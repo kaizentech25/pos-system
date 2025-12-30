@@ -238,92 +238,104 @@ const UsersPage = () => {
           </div>
         </div>
 
-        {/* Results Summary */}
-        <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-          Showing <span className="font-semibold">{paginatedUsers.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}</span> to <span className="font-semibold">{Math.min(currentPage * itemsPerPage, filteredAndSorted.length)}</span> of <span className="font-semibold">{filteredAndSorted.length}</span> users
-        </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase hidden sm:table-cell">User ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase hidden lg:table-cell">Company</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Role</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {paginatedUsers.map((user) => (
-                <tr key={user._id} className="hover:bg-gray-100 dark:hover:bg-gray-700">
-                  <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{user.name}</td>
-                  <td className="px-6 py-4 text-gray-600 dark:text-gray-400 hidden sm:table-cell text-sm">{user.user_id}</td>
-                  <td className="px-6 py-4 text-gray-600 dark:text-gray-400 hidden lg:table-cell text-sm">{user.company_name}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-                      user.role === 'admin' ? 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200' :
-                      user.role === 'manager' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' :
-                      user.role === 'inventory_manager' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' :
-                      'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
-                    }`}>
-                      {user.role}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-4">
-                      <button
-                        onClick={() => handleEdit(user)}
-                        className="text-blue-600 hover:text-blue-500 font-medium"
-                      >
-                        <Edit className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(user._id)}
-                        className="text-red-600 hover:text-red-500 font-medium"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </td>
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Users
+            </h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-white">Name</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-white">User ID</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-white">Company</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-white">Role</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-white">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {/* Empty State */}
-          {filteredAndSorted.length === 0 && (
-            <div className="text-center py-12">
-              <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-600 dark:text-gray-400">No users found matching your filters</p>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {paginatedUsers.length > 0 ? (
+                  paginatedUsers.map((user) => (
+                    <tr key={user._id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                      <td className="py-3 px-4 text-gray-900 dark:text-white font-medium">{user.name}</td>
+                      <td className="py-3 px-4 text-gray-600 dark:text-gray-400">{user.user_id}</td>
+                      <td className="py-3 px-4 text-gray-600 dark:text-gray-400">{user.company_name}</td>
+                      <td className="py-3 px-4">
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          user.role === 'admin' ? 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200' :
+                          user.role === 'manager' ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200' :
+                          user.role === 'inventory_manager' ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200' :
+                          'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
+                        }`}>
+                          {user.role}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-4">
+                          <button
+                            onClick={() => handleEdit(user)}
+                            className="text-blue-600 hover:text-blue-500 font-medium"
+                            aria-label="Edit user"
+                          >
+                            <Edit className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(user._id)}
+                            className="text-red-600 hover:text-red-500 font-medium"
+                            aria-label="Delete user"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="5" className="py-8 text-center text-gray-500 dark:text-gray-400">
+                      No users found matching your filters
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          {/* Pagination (visually inside table, flush with border, styled like transaction history) */}
+          {totalPages > 1 && (
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col md:flex-row md:items-center md:justify-between text-sm text-gray-600 dark:text-gray-400 gap-2">
+              <span>
+                {(() => {
+                  const start = (currentPage - 1) * itemsPerPage + 1;
+                  const end = Math.min(currentPage * itemsPerPage, filteredAndSorted.length);
+                  return `Showing ${start}-${end} of ${filteredAndSorted.length} users`;
+                })()}
+              </span>
+              <div className="flex items-center gap-2 md:ml-auto">
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="min-w-[60px] text-center">{currentPage} of {totalPages}</span>
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Next page"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           )}
         </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="mt-6 flex items-center justify-between">
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              Page <span className="font-semibold">{currentPage}</span> of <span className="font-semibold">{totalPages}</span>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
-                className="flex items-center gap-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft size={18} /> Previous
-              </button>
-              <button
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage === totalPages}
-                className="flex items-center gap-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next <ChevronRight size={18} />
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Add/Edit User Modal */}
@@ -411,6 +423,37 @@ const UsersPage = () => {
               </div>
             </form>
           </div>
+        {/* Pagination (visually inside table, flush with border, styled like transaction history) */}
+        {totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col md:flex-row md:items-center md:justify-between text-sm text-gray-600 dark:text-gray-400 gap-2">
+            <span>
+              {(() => {
+                const start = (currentPage - 1) * itemsPerPage + 1;
+                const end = Math.min(currentPage * itemsPerPage, filteredAndSorted.length);
+                return `Showing ${start}-${end} of ${filteredAndSorted.length} users`;
+              })()}
+            </span>
+            <div className="flex items-center gap-2 md:ml-auto">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                aria-label="Previous page"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="min-w-[60px] text-center">{currentPage} of {totalPages}</span>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                aria-label="Next page"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
         </div>
       )}
     </div>

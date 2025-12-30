@@ -1,5 +1,20 @@
 import Product from '../models/Product.js';
 
+export const getCategories = async (req, res) => {
+  try {
+    const { company_name } = req.query;
+    const query = {};
+    if (company_name) {
+      query.company_name = company_name;
+    }
+    const categories = await Product.distinct('category', query);
+    res.status(200).json({ success: true, data: categories });
+  } catch (error) {
+    console.error('Error fetching categories:', error.message);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 export const getAllProducts = async (req, res) => {
   try {
     const { category, search, company_name } = req.query;
@@ -47,7 +62,7 @@ export const getProductById = async (req, res) => {
 
 export const createProduct = async (req, res) => {
   try {
-    const { name, sku, barcode, category, price, cost, stock, lowStockAlert } = req.body;
+    const { name, sku, barcode, category, price, cost, stock, lowStockAlert, company_name } = req.body;
 
     if (!name || !sku || !barcode || !category || price === undefined || cost === undefined) {
       return res.status(400).json({ success: false, message: 'All required fields must be provided' });
@@ -67,6 +82,7 @@ export const createProduct = async (req, res) => {
       cost,
       stock: stock || 0,
       lowStockAlert: lowStockAlert || 10,
+      company_name: company_name || 'Unknown',
     });
 
     await product.save();

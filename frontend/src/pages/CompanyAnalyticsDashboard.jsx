@@ -34,8 +34,11 @@ const CompanyAnalyticsDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Access control: only allow if user has a company
-  if (!user?.company_name) {
+  const role = user?.role;
+  const isAdmin = role === 'admin';
+
+  // Access control: allow admin even without a company (admin can monitor others)
+  if (!isAdmin && !user?.company_name) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Navbar />
@@ -62,7 +65,9 @@ const CompanyAnalyticsDashboard = () => {
     products: [],
     transactions: [],
   });
-  const [loading, setLoading] = useState(true);
+  const [companies, setCompanies] = useState([]);
+  const [selectedCompany, setSelectedCompany] = useState('');
+  const [loading, setLoading] = useState(isAdmin ? false : true);
   const [timeRange, setTimeRange] = useState('7d');
   const [anchorTime, setAnchorTime] = useState(() => Date.now());
   const [activityView, setActivityView] = useState('daily');
@@ -82,8 +87,20 @@ const CompanyAnalyticsDashboard = () => {
   const [sortDirection, setSortDirection] = useState('desc');
 
   useEffect(() => {
+    if (isAdmin) {
+      fetchCompanies();
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    // Admin needs a selected company; non-admin uses their own
+    if (!isAdmin && !user?.company_name) return;
+    if (isAdmin && !selectedCompany) {
+      setLoading(false);
+      return;
+    }
     fetchCompanyData();
-  }, [user?.company_name]);
+  }, [user?.company_name, selectedCompany]);
 
   useEffect(() => {
     setActivityView(timeRange === '24h' ? 'hourly' : 'daily');
@@ -92,23 +109,32 @@ const CompanyAnalyticsDashboard = () => {
   const fetchCompanyData = async () => {
     try {
       setLoading(true);
+      const targetCompany = isAdmin ? selectedCompany : user?.company_name;
+
+      if (!targetCompany) {
+        setStats({ users: [], products: [], transactions: [] });
+        setLoading(false);
+        return;
+      }
+
       const [usersRes, transactionsRes, productsRes] = await Promise.all([
         axios.get('/auth/users'),
-        axios.get('/transactions'),
-        axios.get('/products'),
+        axios.get('/transactions', { params: { company_name: targetCompany } }),
+        axios.get('/products', { params: { company_name: targetCompany } }),
       ]);
 
       const users = usersRes.data.data || [];
       const transactions = transactionsRes.data.data || [];
       const products = productsRes.data.data || [];
 
-      // COMPANY-SCOPED: Only this user's company data
-      const companyUsers = users.filter(u => u.company_name === user?.company_name);
-      const companyTransactions = transactions.filter(t => t.company_name === user?.company_name);
+      // COMPANY-SCOPED: Only target company data
+      const companyUsers = users.filter(u => u.company_name === targetCompany);
+      const companyTransactions = transactions.filter(t => t.company_name === targetCompany);
+      const companyProducts = products.filter(p => p.company_name === targetCompany);
 
       setStats({
         users: companyUsers,
-        products: products,
+        products: companyProducts,
         transactions: companyTransactions,
       });
       setAnchorTime(Date.now());
@@ -116,6 +142,22 @@ const CompanyAnalyticsDashboard = () => {
       console.error('Error fetching company data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCompanies = async () => {
+    try {
+      const response = await axios.get('/auth/users');
+      const users = response.data.data || [];
+      const nonAdminUsers = users.filter(u => u.role !== 'admin');
+      const uniqueCompanies = [...new Set(nonAdminUsers.map(u => u.company_name).filter(Boolean))].sort();
+      setCompanies(uniqueCompanies);
+
+      if (!selectedCompany && uniqueCompanies.length > 0) {
+        setSelectedCompany(uniqueCompanies[0]);
+      }
+    } catch (error) {
+      console.error('Error fetching companies:', error);
     }
   };
 
@@ -480,10 +522,24 @@ const CompanyAnalyticsDashboard = () => {
         <div className="mb-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
             <div>
-              <h1 className="text-4xl font-bold text-gray-900 dark:text-white">{user?.company_name}</h1>
+              <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
+                {isAdmin ? (selectedCompany || 'Select a company to view analytics') : user?.company_name}
+              </h1>
               <p className="text-gray-600 dark:text-gray-400 mt-1">Business analytics and operations</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
+              {isAdmin && (
+                <select
+                  value={selectedCompany}
+                  onChange={e => setSelectedCompany(e.target.value)}
+                  className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm font-medium"
+                >
+                  <option value="">Select a company</option>
+                  {companies.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              )}
               <select
                 value={activeSection}
                 onChange={e => setActiveSection(e.target.value)}
@@ -514,6 +570,11 @@ const CompanyAnalyticsDashboard = () => {
               </button>
             </div>
           </div>
+          {isAdmin && !selectedCompany && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-sm text-blue-800 dark:text-blue-200">
+              Select a company to load analytics.
+            </div>
+          )}
         </div>
 
         {/* OVERVIEW SECTION - COMPANY KPIs */}

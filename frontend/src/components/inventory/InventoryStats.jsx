@@ -1,4 +1,4 @@
-import { Package, DollarSign, AlertTriangle, BarChart3 } from 'lucide-react';
+import { Package, DollarSign, AlertTriangle, BarChart3, AlertCircle } from 'lucide-react';
 
 const InventoryStats = ({ products }) => {
   const stats = {
@@ -14,6 +14,7 @@ const InventoryStats = ({ products }) => {
     purple: 'text-purple-600 dark:text-purple-400',
     green: 'text-green-600 dark:text-green-400',
     orange: 'text-orange-600 dark:text-orange-400',
+    red: 'text-red-600 dark:text-red-400',
   };
 
   const StatCard = ({ label, value, icon: Icon, color }) => {
@@ -31,7 +32,7 @@ const InventoryStats = ({ products }) => {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
       <StatCard
         label="Total Products"
         value={stats.totalProducts}
@@ -51,10 +52,16 @@ const InventoryStats = ({ products }) => {
         color="green"
       />
       <StatCard
-        label="Stock Alerts"
-        value={stats.lowStockItems + stats.outOfStockItems}
+        label="Low Stock Items"
+        value={stats.lowStockItems}
         icon={AlertTriangle}
         color="orange"
+      />
+      <StatCard
+        label="Out of Stock"
+        value={stats.outOfStockItems}
+        icon={AlertCircle}
+        color="red"
       />
     </div>
   );

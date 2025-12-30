@@ -7,26 +7,11 @@ import Transaction from './src/models/Transaction.js';
 dotenv.config();
 
 const COMPANIES = [
-  {
-    name: '7 Eleven Jimenez',
-    code: '7EJ',
-    products: 20,
-  },
-  {
-    name: "Ding's Store",
-    code: 'DING',
-    products: 14,
-  },
-  {
-    name: "Dezzee's Grocery",
-    code: 'DEZZ',
-    products: 7,
-  },
-  {
-    name: 'J-Mart',
-    code: 'JMRT',
-    products: 25,
-  },
+  { name: 'Luna Mart', code: 'LNM', products: 22 },
+  { name: 'Bayan Mini Stop', code: 'BYN', products: 18 },
+  { name: 'Harbor Fresh Grocer', code: 'HFG', products: 24 },
+  { name: 'Summit Convenience', code: 'SMT', products: 20 },
+  { name: 'Greenfield Market', code: 'GFM', products: 26 },
 ];
 
 const randomPick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -38,6 +23,7 @@ const buildProducts = (company) => {
     'Snacks': { min: 10, max: 150 },
     'Food': { min: 20, max: 220 },
     'Other': { min: 10, max: 500 },
+    'Household': { min: 25, max: 350 },
   };
   // Realistic PH product names by category
   const productNames = {
@@ -49,6 +35,9 @@ const buildProducts = (company) => {
     ],
     'Food': [
       'Lucky Me Pancit Canton', 'Purefoods Corned Beef', 'Ligo Sardines', 'Palmolive Shampoo', 'Safeguard Soap',
+    ],
+    'Household': [
+      'Joy Dishwashing Liquid', 'Calla Detergent', 'Mr. Muscle Multi-Surface', 'Domex Toilet Cleaner', 'Pride Powder Detergent',
     ],
     'Other': [
       'Downy Fabric Softener', 'Colgate Toothpaste', 'Johnson Baby Powder', 'Vicks Vaporub', 'Hansel Mocha Biscuits',
@@ -101,38 +90,36 @@ const buildProducts = (company) => {
   return products;
 };
 
-const buildUsers = (company) => {
-  return [
-    {
-      name: `${company.code} Store Manager`,
-      user_id: `${company.code}-MGR-001`,
-      password: 'manager123',
-      company_name: company.name,
-      role: 'manager',
-    },
-    {
-      name: `${company.code} Inventory Manager`,
-      user_id: `${company.code}-INV-001`,
-      password: 'inventory123',
-      company_name: company.name,
-      role: 'inventory_manager',
-    },
-    {
-      name: `${company.code} Cashier 1`,
-      user_id: `${company.code}-CSH-001`,
-      password: 'cashier123',
-      company_name: company.name,
-      role: 'cashier',
-    },
-    {
-      name: `${company.code} Cashier 2`,
-      user_id: `${company.code}-CSH-002`,
-      password: 'cashier123',
-      company_name: company.name,
-      role: 'cashier',
-    },
-  ];
-};
+const buildUsers = (company) => ([
+  {
+    name: `${company.name} Manager`,
+    user_id: `${company.code}-MGR-001`,
+    password: 'manager123',
+    company_name: company.name,
+    role: 'manager',
+  },
+  {
+    name: `${company.name} Inventory Manager`,
+    user_id: `${company.code}-INV-001`,
+    password: 'inventory123',
+    company_name: company.name,
+    role: 'inventory_manager',
+  },
+  {
+    name: `${company.name} Cashier 1`,
+    user_id: `${company.code}-CSH-001`,
+    password: 'cashier123',
+    company_name: company.name,
+    role: 'cashier',
+  },
+  {
+    name: `${company.name} Cashier 2`,
+    user_id: `${company.code}-CSH-002`,
+    password: 'cashier123',
+    company_name: company.name,
+    role: 'cashier',
+  },
+]);
 
 const createTransactions = (company, products, cashiers) => {
   const transactions = [];
@@ -211,6 +198,19 @@ const createTransactions = (company, products, cashiers) => {
       const createdAt = new Date(createdDate);
       createdAt.setHours(hour, minute, 0, 0);
 
+      // Payment method and cash fields
+      const paymentMethod = weightedPick(paymentOptions);
+      let cashReceived = 0;
+      let change = 0;
+      if (paymentMethod === 'Cash') {
+        // Simulate customer giving a round amount >= total
+        const roundUp = [0, 10, 20, 50, 100, 200];
+        const base = Math.ceil(total / 10) * 10;
+        cashReceived = base + randomPick(roundUp);
+        if (cashReceived < total) cashReceived = Math.ceil(total);
+        change = Number((cashReceived - total).toFixed(2));
+      }
+
       transactions.push({
         company_name: company.name,
         items,
@@ -219,7 +219,9 @@ const createTransactions = (company, products, cashiers) => {
         vat,
         total,
         totalAmount: total,
-        paymentMethod: weightedPick(paymentOptions),
+        paymentMethod,
+        cashReceived: paymentMethod === 'Cash' ? cashReceived : 0,
+        change: paymentMethod === 'Cash' ? change : 0,
         cashier: cashier._id,
         cashierName: cashier.name,
         createdAt,
@@ -244,10 +246,10 @@ const seedData = async () => {
 
     // Admin user
     const adminUser = await User.create({
-      name: 'Admin Developer',
-      user_id: 'ADMIN-00000-000',
+      name: 'Jasmine Camasura',
+      user_id: 'ADMIN-KZNT-000',
       password: 'admin123',
-      company_name: 'TechWisePH',
+      company_name: 'Kaizen Tech',
       role: 'admin',
     });
     console.log(`✓ Created admin: ${adminUser.user_id}`);
@@ -283,16 +285,15 @@ const seedData = async () => {
     console.log('\n✅ Database seeded successfully!');
     console.log('\n=== Demo Credentials ===');
     console.log('Admin (Full Access):');
-    console.log('  User ID: ADMIN-00000-000');
+    console.log('  User ID: ADMIN-KZNT-000');
     console.log('  Password: admin123');
-    console.log('  Company: TechWisePH');
+    console.log('  Company: Kaizen Tech');
     console.log('\nPer-Company Accounts:');
     COMPANIES.forEach((c) => {
       console.log(`\n${c.name}:`);
       console.log(`  Manager: ${c.code}-MGR-001 / manager123`);
       console.log(`  Inventory: ${c.code}-INV-001 / inventory123`);
-      console.log(`  Cashier 1: ${c.code}-CSH-001 / cashier123`);
-      console.log(`  Cashier 2: ${c.code}-CSH-002 / cashier123`);
+      console.log(`  Cashier: ${c.code}-CSH-001 / cashier123`);
     });
 
     process.exit(0);

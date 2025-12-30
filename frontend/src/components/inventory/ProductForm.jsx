@@ -1,7 +1,28 @@
+import { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 
-const ProductForm = ({ isOpen, onClose, onSubmit, formData, setFormData, isEditing }) => {
+const ProductForm = ({ isOpen, onClose, onSubmit, formData, setFormData, isEditing, categories: categoriesProp = [] }) => {
+  const [customMode, setCustomMode] = useState(false);
+  const [customCategory, setCustomCategory] = useState('');
+
+  const categories = useMemo(() => {
+    const unique = new Set(categoriesProp.filter(Boolean));
+    if (formData.category) {
+      unique.add(formData.category);
+    }
+    return Array.from(unique);
+  }, [categoriesProp, formData.category]);
+
+  useEffect(() => {
+    if (isOpen) {
+      // Reset custom category UI each time the modal opens so edit mode shows the saved category
+      setCustomMode(false);
+      setCustomCategory('');
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
+  const selectValue = customMode ? '__custom__' : (formData.category || '');
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -74,17 +95,43 @@ const ProductForm = ({ isOpen, onClose, onSubmit, formData, setFormData, isEditi
                 Category *
               </label>
               <select
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                value={selectValue}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === '__custom__') {
+                    setCustomMode(true);
+                    setFormData({ ...formData, category: customCategory || '' });
+                  } else {
+                    setCustomMode(false);
+                    setFormData({ ...formData, category: value });
+                    setCustomCategory('');
+                  }
+                }}
                 className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600 transition-colors"
                 required
               >
                 <option value="">Select Category</option>
-                <option value="Beverages">Beverages</option>
-                <option value="Snacks">Snacks</option>
-                <option value="Food">Food</option>
-                <option value="Other">Other</option>
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+                <option value="__custom__">Custom category…</option>
               </select>
+              {customMode && (
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">Enter custom category</label>
+                  <input
+                    type="text"
+                    value={customCategory}
+                    onChange={(e) => {
+                      setCustomCategory(e.target.value);
+                      setFormData({ ...formData, category: e.target.value });
+                    }}
+                    className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-600 transition-colors"
+                    placeholder="e.g., Personal Care"
+                    required
+                  />
+                </div>
+              )}
             </div>
 
             {/* Price */}

@@ -16,15 +16,15 @@ const productSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+    category: {
+      type: String,
+      required: true,
+      // allow dynamic categories entered by users
+    },
     barcode: {
       type: String,
       required: true,
       unique: true,
-    },
-    category: {
-      type: String,
-      required: true,
-      enum: ['Beverages', 'Snacks', 'Food', 'Other'],
     },
     price: {
       type: Number,

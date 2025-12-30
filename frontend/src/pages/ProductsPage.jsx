@@ -21,6 +21,7 @@ const ProductsPage = () => {
   const [showStockModal, setShowStockModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [categories, setCategories] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
     sku: '',
@@ -30,6 +31,7 @@ const ProductsPage = () => {
     cost: 0,
     stock: 0,
     lowStockAlert: 10,
+    company_name: '',
   });
   // Company filter for admin
   const [companyFilter, setCompanyFilter] = useState(user?.role === 'admin' ? '' : user?.company_name || '');
@@ -44,6 +46,7 @@ const ProductsPage = () => {
 
   useEffect(() => {
     fetchProducts();
+    fetchCategories();
     // eslint-disable-next-line
   }, [search, category, stockStatus, companyFilter]);
 
@@ -82,6 +85,24 @@ const ProductsPage = () => {
     } catch (error) {
       console.error('Error fetching products:', error);
       toast.error('Failed to load products');
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const params = {};
+      if (user?.role === 'admin') {
+        if (companyFilter) {
+          params.company_name = companyFilter;
+        }
+      } else if (user?.company_name) {
+        params.company_name = user.company_name;
+      }
+      const response = await axios.get('/products/categories', { params });
+      setCategories(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      setCategories([]);
     }
   };
 
@@ -155,17 +176,29 @@ const ProductsPage = () => {
 
   const handleSubmit = async () => {
     try {
+      const companyNameToUse = user?.role === 'admin'
+        ? (companyFilter || formData.company_name)
+        : user?.company_name;
+
+      if (!companyNameToUse) {
+        toast.error('Please select a company before saving a product.');
+        return;
+      }
+
+      const payload = { ...formData, company_name: companyNameToUse };
+
       if (editingProduct) {
-        await axios.put(`/products/${editingProduct._id}`, formData);
+        await axios.put(`/products/${editingProduct._id}`, payload);
         toast.success('Product updated successfully');
       } else {
-        await axios.post('/products', formData);
+        await axios.post('/products', payload);
         toast.success('Product created successfully');
       }
       setShowProductModal(false);
       setEditingProduct(null);
       resetForm();
       fetchProducts();
+      fetchCategories();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to save product');
     }
@@ -193,6 +226,7 @@ const ProductsPage = () => {
       cost: product.cost,
       stock: product.stock,
       lowStockAlert: product.lowStockAlert,
+      company_name: product.company_name || '',
     });
     setShowProductModal(true);
   };
@@ -290,10 +324,9 @@ const ProductsPage = () => {
               className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
             >
               <option>All Categories</option>
-              <option>Beverages</option>
-              <option>Snacks</option>
-              <option>Food</option>
-              <option>Other</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
             </select>
 
             {/* Stock Status Filter */}
@@ -378,6 +411,7 @@ const ProductsPage = () => {
         formData={formData}
         setFormData={setFormData}
         isEditing={!!editingProduct}
+        categories={categories}
       />
 
       <StockAdjustModal

@@ -11,6 +11,7 @@ const DashboardPage = () => {
     todaySales: 0,
     transactions: 0,
     lowStockItems: 0,
+    outOfStockItems: 0,
     activeProducts: 0,
   });
   const [companies, setCompanies] = useState([]);
@@ -85,7 +86,7 @@ const DashboardPage = () => {
       <div className="max-w-full mx-auto px-4 md:px-6 py-8">
         <div className="mb-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
+            <div className="flex-1 min-w-0">
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
                 <LayoutDashboard size={28} className="inline mr-2" /> Welcome, {user?.name}!
               </h1>
@@ -94,35 +95,39 @@ const DashboardPage = () => {
                 {!isAdmin && user?.company_name && ` - ${user.company_name}`}
               </p>
             </div>
-            
-            {/* Company Filter for Admin */}
-            {isAdmin && (
-              <div className="flex gap-3">
-                <select
-                  value={selectedCompany}
-                  onChange={(e) => setSelectedCompany(e.target.value)}
-                  className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm font-medium"
-                >
-                  <option value="all">All Companies</option>
-                  {companies.map(company => (
-                    <option key={company} value={company}>{company}</option>
-                  ))}
-                </select>
-                <button
-                  onClick={fetchStats}
-                  className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-2"
-                  disabled={loading}
-                >
-                  <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-                  Refresh
-                </button>
-              </div>
-            )}
+            <div className="flex items-center gap-3">
+              <span className="px-4 py-2 rounded-lg bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-200 font-semibold text-sm shadow-sm">
+                {new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+              </span>
+              {/* Company Filter for Admin */}
+              {isAdmin && (
+                <>
+                  <select
+                    value={selectedCompany}
+                    onChange={(e) => setSelectedCompany(e.target.value)}
+                    className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm font-medium"
+                  >
+                    <option value="all">All Companies</option>
+                    {companies.map(company => (
+                      <option key={company} value={company}>{company}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={fetchStats}
+                    className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    disabled={loading}
+                  >
+                    <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                    Refresh
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Stats Cards - Role-aware */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           {canViewSales && (
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <div className="flex items-center justify-between mb-4">
@@ -155,6 +160,18 @@ const DashboardPage = () => {
               </div>
               <p className="text-3xl font-bold text-orange-600">
                 {loading ? '...' : stats.lowStockItems}
+              </p>
+            </div>
+          )}
+
+          {canViewInventory && (
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-gray-600 dark:text-gray-400 text-sm font-medium">Out of Stock</h3>
+                <AlertTriangle size={32} className="text-red-500" />
+              </div>
+              <p className="text-3xl font-bold text-red-600">
+                {loading ? '...' : stats.outOfStockItems}
               </p>
             </div>
           )}
