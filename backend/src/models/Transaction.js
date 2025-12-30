@@ -25,6 +25,11 @@ const transactionItemSchema = new mongoose.Schema({
 
 const transactionSchema = new mongoose.Schema(
   {
+    company_name: {
+      type: String,
+      required: false,
+      default: 'Unknown',
+    },
     items: [transactionItemSchema],
     subtotal: {
       type: Number,
@@ -42,10 +47,23 @@ const transactionSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    // Alias to help monitoring UI
+    totalAmount: {
+      type: Number,
+      required: true,
+    },
     paymentMethod: {
       type: String,
       enum: ['Cash', 'QR Code', 'Card'],
       required: true,
+    },
+    cashReceived: {
+      type: Number,
+      default: 0,
+    },
+    change: {
+      type: Number,
+      default: 0,
     },
     cashier: {
       type: mongoose.Schema.Types.ObjectId,

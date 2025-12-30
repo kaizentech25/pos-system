@@ -1,14 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Navbar from '../components/Navbar';
-import { ShoppingCart, Search, Edit, Trash2 } from 'lucide-react';
+import { Package, Plus, Filter, FileSearch, ChevronLeft, ChevronRight } from 'lucide-react';
 import axios from '../lib/axios';
+import toast from 'react-hot-toast';
+import InventoryStats from '../components/inventory/InventoryStats';
+import ProductTable from '../components/inventory/ProductTable';
+import ProductForm from '../components/inventory/ProductForm';
+import StockAdjustModal from '../components/inventory/StockAdjustModal';
+import SearchBar from '../components/inventory/SearchBar';
+import { useAuth } from '../context/AuthContext';
 
 const ProductsPage = () => {
+  const { user } = useAuth();
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All Categories');
-  const [showModal, setShowModal] = useState(false);
+  const [stockStatus, setStockStatus] = useState('All');
+  const [sortConfig, setSortConfig] = useState({ column: 'name', direction: 'asc' });
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [showStockModal, setShowStockModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [categories, setCategories] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
     sku: '',
@@ -18,39 +31,176 @@ const ProductsPage = () => {
     cost: 0,
     stock: 0,
     lowStockAlert: 10,
+    company_name: '',
   });
+  // Company filter for admin
+  const [companyFilter, setCompanyFilter] = useState(user?.role === 'admin' ? '' : user?.company_name || '');
+  const [companyOptions, setCompanyOptions] = useState([]);
+
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      fetchCompanies();
+    }
+    // eslint-disable-next-line
+  }, [user]);
 
   useEffect(() => {
     fetchProducts();
-  }, [search, category]);
+    fetchCategories();
+    // eslint-disable-next-line
+  }, [search, category, stockStatus, companyFilter]);
+
+  // Fetch all companies for admin filter
+  const fetchCompanies = async () => {
+    try {
+      const response = await axios.get('/auth/users');
+      let companies = Array.from(new Set(response.data.data.map(u => u.company_name)));
+      // Remove admin's own company from the filter
+      if (user?.company_name) {
+        companies = companies.filter(c => c !== user.company_name);
+      }
+      setCompanyOptions(companies);
+    } catch (err) {
+      setCompanyOptions([]);
+    }
+  };
 
   const fetchProducts = async () => {
     try {
-      const params = {};
-      if (search) params.search = search;
-      if (category !== 'All Categories') params.category = category;
-      
+      const params = { search };
+      // For admin: if 'All Companies' is selected, do NOT filter by company_name
+      if (user?.role === 'admin') {
+        if (companyFilter) {
+          params.company_name = companyFilter;
+        }
+        // else: no company_name param, fetch all
+      } else if (user?.company_name) {
+        params.company_name = user.company_name;
+      }
+      if (category && category !== 'All Categories') {
+        params.category = category;
+      }
       const response = await axios.get('/products', { params });
       setProducts(response.data.data);
     } catch (error) {
       console.error('Error fetching products:', error);
+      toast.error('Failed to load products');
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const fetchCategories = async () => {
     try {
-      if (editingProduct) {
-        await axios.put(`/products/${editingProduct._id}`, formData);
-      } else {
-        await axios.post('/products', formData);
+      const params = {};
+      if (user?.role === 'admin') {
+        if (companyFilter) {
+          params.company_name = companyFilter;
+        }
+      } else if (user?.company_name) {
+        params.company_name = user.company_name;
       }
-      setShowModal(false);
+      const response = await axios.get('/products/categories', { params });
+      setCategories(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      setCategories([]);
+    }
+  };
+
+  // Filter, sort, and paginate products
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const filteredAndSortedProducts = useMemo(() => {
+    let filtered = [...products];
+    const searchLower = search.trim().toLowerCase();
+    if (searchLower) {
+      // Prioritize exact SKU/barcode matches, then partial matches
+      const exactMatches = filtered.filter(
+        (p) =>
+          p.sku.toLowerCase() === searchLower ||
+          p.barcode.toLowerCase() === searchLower
+      );
+      const partialMatches = filtered.filter(
+        (p) =>
+          (p.name && p.name.toLowerCase().includes(searchLower)) ||
+          (p.sku && p.sku.toLowerCase().includes(searchLower)) ||
+          (p.barcode && p.barcode.toLowerCase().includes(searchLower))
+      );
+      // Remove duplicates (if exact match is also a partial match)
+      const uniquePartialMatches = partialMatches.filter(
+        (p) =>
+          !exactMatches.some((e) => e._id === p._id)
+      );
+      filtered = [...exactMatches, ...uniquePartialMatches];
+    }
+    if (category !== 'All Categories') {
+      filtered = filtered.filter((p) => p.category === category);
+    }
+    // Stock Status Filter
+    if (stockStatus !== 'All') {
+      filtered = filtered.filter((p) => {
+        if (stockStatus === 'Out of Stock') return p.stock === 0;
+        if (stockStatus === 'Low Stock') return p.stock > 0 && p.stock <= p.lowStockAlert;
+        if (stockStatus === 'In Stock') return p.stock > p.lowStockAlert;
+        return true;
+      });
+    }
+    filtered.sort((a, b) => {
+      let aValue = a[sortConfig.column];
+      let bValue = b[sortConfig.column];
+      if (typeof aValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return filtered;
+  }, [products, search, category, stockStatus, sortConfig]);
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredAndSortedProducts.length / itemsPerPage) || 1;
+  // For highlighting: pass searchLower to ProductTable
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredAndSortedProducts.slice(start, start + itemsPerPage);
+  }, [filteredAndSortedProducts, currentPage]);
+  const searchLower = search.trim().toLowerCase();
+
+  const handleSort = (column) => {
+    setSortConfig((prev) => ({
+      column,
+      direction: prev.column === column && prev.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+
+  const handleSubmit = async () => {
+    try {
+      const companyNameToUse = user?.role === 'admin'
+        ? (companyFilter || formData.company_name)
+        : user?.company_name;
+
+      if (!companyNameToUse) {
+        toast.error('Please select a company before saving a product.');
+        return;
+      }
+
+      const payload = { ...formData, company_name: companyNameToUse };
+
+      if (editingProduct) {
+        await axios.put(`/products/${editingProduct._id}`, payload);
+        toast.success('Product updated successfully');
+      } else {
+        await axios.post('/products', payload);
+        toast.success('Product created successfully');
+      }
+      setShowProductModal(false);
       setEditingProduct(null);
       resetForm();
       fetchProducts();
+      fetchCategories();
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to save product');
+      toast.error(error.response?.data?.message || 'Failed to save product');
     }
   };
 
@@ -58,9 +208,10 @@ const ProductsPage = () => {
     if (!confirm('Are you sure you want to delete this product?')) return;
     try {
       await axios.delete(`/products/${id}`);
+      toast.success('Product deleted successfully');
       fetchProducts();
     } catch (error) {
-      alert('Failed to delete product');
+      toast.error('Failed to delete product');
     }
   };
 
@@ -75,8 +226,21 @@ const ProductsPage = () => {
       cost: product.cost,
       stock: product.stock,
       lowStockAlert: product.lowStockAlert,
+      company_name: product.company_name || '',
     });
-    setShowModal(true);
+    setShowProductModal(true);
+  };
+
+  const [stockAdjustType, setStockAdjustType] = useState('in');
+  const handleStockAdjust = (product, type = 'in') => {
+    setSelectedProduct(product);
+    setStockAdjustType(type);
+    setShowStockModal(true);
+  };
+
+  const handleStockSuccess = () => {
+    fetchProducts();
+    toast.success('Stock adjusted successfully');
   };
 
   const resetForm = () => {
@@ -92,235 +256,174 @@ const ProductsPage = () => {
     });
   };
 
+  const openAddProductModal = () => {
+    resetForm();
+    setEditingProduct(null);
+    setShowProductModal(true);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar />
 
       <div className="max-w-full mx-auto px-4 md:px-6 py-8">
+        {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2"><ShoppingCart size={28} className="inline mr-2" /> Products & Inventory</h1>
-          <p className="text-gray-600 dark:text-gray-400">Manage your inventory and product catalog</p>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                <Package className="w-10 h-10" />
+                Inventory Management
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-2">Manage products, stock levels, and pricing</p>
+            </div>
+            <button 
+              onClick={openAddProductModal} 
+              className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg font-medium transition-colors flex items-center gap-2 w-fit"
+            >
+              <Plus size={20} />
+              Add Product
+            </button>
+          </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Products</h2>
-              <button
-                onClick={() => {
-                  resetForm();
-                  setEditingProduct(null);
-                  setShowModal(true);
-                }}
-                className="bg-blue-600 dark:bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-800 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors"
-              >
-                <span>+</span> Add Product
-              </button>
+        {/* Stats Cards */}
+        <InventoryStats products={products} />
+
+        {/* Main Content Card */}
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow p-6">
+          {/* Toolbar */}
+          <div className="flex flex-col md:flex-row gap-3 mb-6">
+            {/* Search */}
+            <div className="flex-1">
+              <SearchBar
+                value={search}
+                onChange={val => { setSearch(val); setCurrentPage(1); }}
+                placeholder="Search by name, SKU, or barcode..."
+              />
             </div>
 
-            <div className="flex gap-4">
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search products..."
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-600 focus:border-transparent"
-                />
-                <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              </div>
+            {/* Company Filter for Admin */}
+            {user?.role === 'admin' && (
               <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                value={companyFilter}
+                onChange={e => { setCompanyFilter(e.target.value); setCurrentPage(1); }}
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
               >
-                <option>All Categories</option>
-                <option>Beverages</option>
-                <option>Snacks</option>
-                <option>Food</option>
-                <option>Other</option>
+                <option value="">All Companies</option>
+                {companyOptions.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
               </select>
-            </div>
+            )}
+
+            {/* Category Filter */}
+            <select
+              value={category}
+              onChange={(e) => { setCategory(e.target.value); setCurrentPage(1); }}
+              className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+            >
+              <option>All Categories</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+
+            {/* Stock Status Filter */}
+            <select
+              value={stockStatus}
+              onChange={(e) => { setStockStatus(e.target.value); setCurrentPage(1); }}
+              className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+            >
+              <option value="All">All Stock Status</option>
+              <option value="In Stock">In Stock</option>
+              <option value="Low Stock">Low Stock</option>
+              <option value="Out of Stock">Out of Stock</option>
+            </select>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Product</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">SKU/Barcode</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Price</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Stock</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Category</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {products.map((product) => (
-                  <tr key={product._id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-gray-900 dark:text-white">{product.name}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900 dark:text-white">{product.sku}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">{product.barcode}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">₱{product.price.toFixed(2)}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">Cost: ₱{product.cost.toFixed(2)}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={product.stock <= product.lowStockAlert ? 'text-red-600 dark:text-red-400 font-semibold' : 'text-gray-900 dark:text-white'}>
-                        {product.stock}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="px-2 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
-                        {product.category}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleEdit(product)}
-                          className="text-blue-600 hover:text-blue-500"
-                        >
-                          <Edit className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(product._id)}
-                          className="text-red-600 hover:text-red-500"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {/* Product Table */}
+          <div className="overflow-hidden border border-gray-200 dark:border-gray-700 rounded-lg">
+            {paginatedProducts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-gray-500 dark:text-gray-400">
+                <FileSearch size={48} className="mb-2" />
+                <div className="text-lg font-semibold">No matching products</div>
+                <div className="text-sm">Try a different search or filter.</div>
+              </div>
+            ) : (
+              <ProductTable
+                products={paginatedProducts}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onStockAdjust={handleStockAdjust}
+                sortConfig={sortConfig}
+                onSort={handleSort}
+                searchTerm={searchLower}
+              />
+            )}
+          </div>
+
+          {/* Pagination Controls */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mt-4 gap-2 text-sm text-gray-600 dark:text-gray-400">
+            <div>
+              {filteredAndSortedProducts.length === 0 ? (
+                <>No products found</>
+              ) : (
+                <>Showing <span className="font-semibold text-gray-900 dark:text-white">{((currentPage - 1) * itemsPerPage) + 1}</span>
+                <span className="mx-1">–</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{Math.min(currentPage * itemsPerPage, filteredAndSortedProducts.length)}</span>
+                <span className="mx-1">of</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{filteredAndSortedProducts.length}</span> products</>
+              )}
+            </div>
+            <div className="flex justify-end items-center gap-2">
+              <button
+                className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                {currentPage} of {totalPages}
+              </span>
+              <button
+                className="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Add/Edit Product Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-8 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-              {editingProduct ? 'Edit Product' : 'Add Product'}
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">SKU</label>
-                  <input
-                    type="text"
-                    value={formData.sku}
-                    onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Barcode</label>
-                  <input
-                    type="text"
-                    value={formData.barcode}
-                    onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:border-transparent"
-                  >
-                    <option>Beverages</option>
-                    <option>Snacks</option>
-                    <option>Food</option>
-                    <option>Other</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Price</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cost</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.cost}
-                    onChange={(e) => setFormData({ ...formData, cost: Number(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Stock</label>
-                  <input
-                    type="number"
-                    value={formData.stock}
-                    onChange={(e) => setFormData({ ...formData, stock: Number(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Low Stock Alert</label>
-                  <input
-                    type="number"
-                    value={formData.lowStockAlert}
-                    onChange={(e) => setFormData({ ...formData, lowStockAlert: Number(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:border-transparent"
-                    required
-                  />
-                </div>
-              </div>
-              <div className="flex gap-4 pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowModal(false);
-                    setEditingProduct(null);
-                    resetForm();
-                  }}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-gray-700 dark:bg-gray-600 text-white rounded-lg hover:bg-gray-800 dark:hover:bg-gray-700 transition-colors"
-                >
-                  {editingProduct ? 'Update' : 'Create'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Modals */}
+      <ProductForm
+        isOpen={showProductModal}
+        onClose={() => {
+          setShowProductModal(false);
+          setEditingProduct(null);
+          resetForm();
+        }}
+        onSubmit={handleSubmit}
+        formData={formData}
+        setFormData={setFormData}
+        isEditing={!!editingProduct}
+        categories={categories}
+      />
+
+      <StockAdjustModal
+        isOpen={showStockModal}
+        onClose={() => {
+          setShowStockModal(false);
+          setSelectedProduct(null);
+        }}
+        product={selectedProduct}
+        onSuccess={handleStockSuccess}
+        initialType={stockAdjustType}
+      />
     </div>
   );
 };

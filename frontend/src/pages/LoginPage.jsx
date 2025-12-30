@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import axios from '../lib/axios';
 
 const LoginPage = () => {
-  const [email, setEmail] = useState('');
+  const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,9 +23,18 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post('/auth/login', { email, password });
-      login(response.data.data);
-      navigate('/dashboard');
+      const response = await axios.post('/auth/login', { user_id: userId, password });
+      const userData = response.data.data;
+      login(userData);
+
+      const rolePath = {
+        admin: '/system-monitoring',
+        manager: '/dashboard',
+        inventory_manager: '/products',
+        cashier: '/pos',
+      };
+
+      navigate(rolePath[userData.role] || '/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
     } finally {
@@ -93,10 +102,10 @@ const LoginPage = () => {
                 User ID
               </label>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@pos.com"
+                type="text"
+                value={userId}
+                onChange={(e) => setUserId(e.target.value)}
+                placeholder="CASHIER-00000-000"
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-600 focus:border-transparent"
                 required
               />
@@ -111,28 +120,30 @@ const LoginPage = () => {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="••••••••••••••••••••"
                   className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-600 focus:border-transparent pr-12"
                   required
                 />
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  className="absolute right-3 top-3 btn btn-ghost btn-xs p-1 text-gray-500 dark:text-gray-300"
-                  onMouseDown={() => {
-                    setShowPassword(true);
-                    if (peekTimeout) clearTimeout(peekTimeout);
-                    const timeout = setTimeout(() => setShowPassword(false), 3000);
-                    setPeekTimeout(timeout);
-                  }}
-                  onMouseUp={() => {
-                    setShowPassword(false);
-                    if (peekTimeout) clearTimeout(peekTimeout);
-                  }}
-                >
-                  {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
-                </button>
+                {password && (
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    className="absolute right-3 top-3 btn btn-ghost btn-xs p-1 text-gray-500 dark:text-gray-300"
+                    onMouseDown={() => {
+                      setShowPassword(true);
+                      if (peekTimeout) clearTimeout(peekTimeout);
+                      const timeout = setTimeout(() => setShowPassword(false), 3000);
+                      setPeekTimeout(timeout);
+                    }}
+                    onMouseUp={() => {
+                      setShowPassword(false);
+                      if (peekTimeout) clearTimeout(peekTimeout);
+                    }}
+                  >
+                    {showPassword ? <Eye size={18} /> : <EyeOff size={18} />}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -146,10 +157,12 @@ const LoginPage = () => {
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600 dark:text-gray-400">Demo credentials:</p>
-            <p className="text-sm text-gray-800 dark:text-gray-300 font-medium">
-              admin@pos.com / password123
-            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Demo credentials - Luna Mart</p>
+            <div className="text-xs text-gray-800 dark:text-gray-300 space-y-1">
+              <div><span className="font-medium">Manager:</span> LNM-MGR-001 / manager123</div>
+              <div><span className="font-medium">Inventory:</span> LNM-INV-001 / inventory123</div>
+              <div><span className="font-medium">Cashier:</span> LNM-CSH-001 / cashier123</div>
+            </div>
           </div>
         </div>
       </div>

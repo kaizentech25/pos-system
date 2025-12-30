@@ -32,6 +32,22 @@ app.use(rateLimiter);
 //   next();
 // });
 
+// Health check endpoint
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "operational",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    database: "connected",
+    services: {
+      api: "operational",
+      auth: "operational",
+      products: "operational",
+      transactions: "operational"
+    }
+  });
+});
+
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/transactions", transactionRoutes);

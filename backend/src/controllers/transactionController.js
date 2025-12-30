@@ -7,7 +7,7 @@ export const createTransaction = async (req, res) => {
   session.startTransaction();
 
   try {
-    const { items, subtotal, discount, vat, total, paymentMethod, cashier, cashierName } = req.body;
+    const { items, subtotal, discount, vat, total, paymentMethod, cashReceived, change, cashier, cashierName, company_name } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ success: false, message: 'Transaction must have at least one item' });
@@ -40,9 +40,13 @@ export const createTransaction = async (req, res) => {
       discount: discount || 0,
       vat,
       total,
+      totalAmount: total,
       paymentMethod,
+      cashReceived: cashReceived || 0,
+      change: change || 0,
       cashier,
       cashierName,
+      company_name: company_name || 'Unknown',
     });
 
     await transaction.save({ session });
@@ -60,13 +64,17 @@ export const createTransaction = async (req, res) => {
 
 export const getAllTransactions = async (req, res) => {
   try {
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate, company_name } = req.query;
     let query = {};
 
     if (startDate || endDate) {
       query.createdAt = {};
       if (startDate) query.createdAt.$gte = new Date(startDate);
       if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
+
+    if (company_name) {
+      query.company_name = company_name;
     }
 
     const transactions = await Transaction.find(query)
@@ -101,28 +109,51 @@ export const getTransactionById = async (req, res) => {
 
 export const getDashboardStats = async (req, res) => {
   try {
+    const { company_name } = req.query;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const todayTransactions = await Transaction.find({
-      createdAt: { $gte: today },
-    });
+    const transactionQuery = { createdAt: { $gte: today } };
+    if (company_name) {
+      transactionQuery.company_name = company_name;
+    }
+
+    const todayTransactions = await Transaction.find(transactionQuery);
 
     const todaySales = todayTransactions.reduce((sum, t) => sum + t.total, 0);
     const transactionCount = todayTransactions.length;
 
-    const lowStockProducts = await Product.find({
-      $expr: { $lte: ['$stock', '$lowStockAlert'] },
-    });
+    // Low stock products (stock > 0 AND stock <= lowStockAlert) with company filter
+    const lowStockQuery = {
+      $expr: { $and: [{ $gt: ['$stock', 0] }, { $lte: ['$stock', '$lowStockAlert'] }] }
+    };
+    if (company_name) {
+      lowStockQuery.company_name = company_name;
+    }
+    const lowStockCount = await Product.countDocuments(lowStockQuery);
 
-    const activeProducts = await Product.countDocuments();
+    // Out of stock products (stock = 0) with company filter
+    const outOfStockQuery = { stock: 0 };
+    if (company_name) {
+      outOfStockQuery.company_name = company_name;
+    }
+    const outOfStockCount = await Product.countDocuments(outOfStockQuery);
+    
+    // Active products (stock > 0) with company filter
+    const activeProductsQuery = { stock: { $gt: 0 } };
+    if (company_name) {
+      activeProductsQuery.company_name = company_name;
+    }
+
+    const activeProducts = await Product.countDocuments(activeProductsQuery);
 
     res.status(200).json({
       success: true,
       data: {
         todaySales,
         transactions: transactionCount,
-        lowStockItems: lowStockProducts.length,
+        lowStockItems: lowStockCount,
+        outOfStockItems: outOfStockCount,
         activeProducts,
       },
     });
@@ -134,7 +165,7 @@ export const getDashboardStats = async (req, res) => {
 
 export const getReports = async (req, res) => {
   try {
-    const { period = 'week' } = req.query;
+    const { period = 'week', company_name } = req.query;
     
     const today = new Date();
     let startDate = new Date();
@@ -153,9 +184,12 @@ export const getReports = async (req, res) => {
         startDate.setDate(today.getDate() - 7);
     }
 
-    const transactions = await Transaction.find({
-      createdAt: { $gte: startDate },
-    }).populate('items.product');
+    const query = { createdAt: { $gte: startDate } };
+    if (company_name) {
+      query.company_name = company_name;
+    }
+
+    const transactions = await Transaction.find(query).populate('items.product');
 
     // Calculate total sales
     const totalSales = transactions.reduce((sum, t) => sum + t.total, 0);

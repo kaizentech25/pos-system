@@ -1,30 +1,66 @@
+
 import { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import { MonitorSmartphone, Search, Trash2 } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 import PaymentModal from '../components/PaymentModal';
+import ReceiptModal from '../components/ReceiptModal';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import axios from '../lib/axios';
 
 const POSTerminalPage = () => {
+
   const { user } = useAuth();
   const { cart, addToCart, removeFromCart, updateQuantity, clearCart, getCartTotal } = useCart();
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState('');
   const [discount, setDiscount] = useState(0);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [receiptData, setReceiptData] = useState(null);
   const [loading, setLoading] = useState(false);
+  // Company filter for admin
+  const [companyFilter, setCompanyFilter] = useState(user?.role === 'admin' ? '' : user?.company_name || '');
+  const [companyOptions, setCompanyOptions] = useState([]);
+
+
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      fetchCompanies();
+    }
+  }, [user]);
 
   useEffect(() => {
     fetchProducts();
-  }, [search]);
+  }, [search, companyFilter]);
+
+  // Fetch all companies for admin filter
+  const fetchCompanies = async () => {
+    try {
+      const response = await axios.get('/auth/users');
+      // Remove admin's own company and duplicates
+      let companies = Array.from(new Set(response.data.data
+        .filter(u => u.role !== 'admin' && u.company_name && u.company_name !== user?.company_name)
+        .map(u => u.company_name)
+      ));
+      setCompanyOptions(companies);
+    } catch (err) {
+      setCompanyOptions([]);
+    }
+  };
+
 
   const fetchProducts = async () => {
     try {
-      const response = await axios.get('/products', {
-        params: { search },
-      });
+      const params = { search };
+      // Always filter by company unless admin (then use filter)
+      if (user?.role === 'admin' && companyFilter) {
+        params.company_name = companyFilter;
+      } else if (user?.company_name) {
+        params.company_name = user.company_name;
+      }
+      const response = await axios.get('/products', { params });
       setProducts(response.data.data);
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -36,7 +72,8 @@ const POSTerminalPage = () => {
   const discountAmount = (subtotal * discount) / 100;
   const total = subtotal + vatAmount - discountAmount;
 
-  const handlePayment = async (paymentMethod) => {
+
+  const handlePayment = async (paymentData) => {
     setLoading(true);
     try {
       const transactionData = {
@@ -52,19 +89,43 @@ const POSTerminalPage = () => {
         discount: discountAmount,
         vat: vatAmount,
         total,
-        paymentMethod,
+        paymentMethod: paymentData.method,
+        cashReceived: paymentData.cashReceived,
+        change: paymentData.change,
         cashier: user._id,
         cashierName: user.name,
+        company_name: user.role === 'admin' ? companyFilter : user.company_name,
       };
 
-      await axios.post('/transactions', transactionData);
-      alert('Transaction completed successfully!');
+      const response = await axios.post('/transactions', transactionData);
+      
+      // Prepare receipt data
+      const receipt = {
+        transactionId: response.data.data._id,
+        company_name: transactionData.company_name,
+        timestamp: new Date(),
+        cashierName: user.name,
+        items: transactionData.items,
+        subtotal,
+        discount: discountAmount,
+        vat: vatAmount,
+        total,
+        paymentMethod: paymentData.method,
+        cashReceived: paymentData.cashReceived || 0,
+        change: paymentData.change || 0,
+      };
+
+      setReceiptData(receipt);
+      setShowPaymentModal(false);
+      setShowReceiptModal(true);
+      
+      // Clear cart and reset
       clearCart();
       setDiscount(0);
-      setShowPaymentModal(false);
       fetchProducts(); // Refresh to update stock
     } catch (error) {
       alert(error.response?.data?.message || 'Transaction failed');
+      setShowPaymentModal(false);
     } finally {
       setLoading(false);
     }
@@ -74,26 +135,39 @@ const POSTerminalPage = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar />
 
-      <div className="max-w-full mx-auto p-4 md:p-6">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6"><MonitorSmartphone size={28} className="inline mr-2" /> POS Terminal</h1>
-
+      <div className="max-w-full mx-auto p-4 md:p-6 mt-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Products Section */}
           <div className="lg:col-span-2">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search products by name, SKU, or barcode..."
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-600 focus:border-transparent"
-                />
-                <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5 mb-6">
+              <div className="flex flex-col md:flex-row md:items-center gap-3">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search products by name, SKU, or barcode..."
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                  />
+                  <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                </div>
+                {/* Company filter for admin */}
+                {user?.role === 'admin' && (
+                  <select
+                    value={companyFilter}
+                    onChange={e => setCompanyFilter(e.target.value)}
+                    className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-600 focus:border-transparent min-w-[200px]"
+                  >
+                    <option value="">Select Company</option>
+                    {companyOptions.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[calc(100vh-285px)] overflow-y-auto">
               {products.map((product) => {
                 const cartItem = cart.find((item) => item._id === product._id);
                 const cartQty = cartItem ? cartItem.quantity : 0;
@@ -114,7 +188,7 @@ const POSTerminalPage = () => {
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 sticky top-24">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Current Sale</h2>
 
-              <div className="mb-6 h-[380px] overflow-y-auto">
+              <div className="mb-6 h-[375px] overflow-y-auto">
                 {cart.length === 0 ? (
                   <div className="text-center py-12">
                     <p className="text-gray-500 dark:text-gray-400 mb-2">No items in cart</p>
@@ -178,7 +252,7 @@ const POSTerminalPage = () => {
                   />
                 </div>
 
-                <div className="space-y-2 text-sm">
+                <div className="space-y-2 text-sm h-[75px]">
                   <div className="flex justify-between">
                     <span className="text-gray-600 dark:text-gray-400">Subtotal:</span>
                     <span className="font-medium text-gray-900 dark:text-white">₱{subtotal.toFixed(2)}</span>
@@ -232,6 +306,13 @@ const POSTerminalPage = () => {
         onClose={() => setShowPaymentModal(false)}
         total={total}
         onConfirmPayment={handlePayment}
+        loading={loading}
+      />
+
+      <ReceiptModal
+        isOpen={showReceiptModal}
+        onClose={() => setShowReceiptModal(false)}
+        receipt={receiptData}
       />
     </div>
   );

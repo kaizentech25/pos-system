@@ -1,8 +1,22 @@
+
 import { Link } from 'react-router';
-import { MonitorSmartphone } from 'lucide-react';
+import { MonitorSmartphone, LayoutDashboard, Activity, Boxes, Users, FileBarChart } from 'lucide-react';
 import ThemeToggle from '../components/ThemeToggle';
+import { useAuth } from '../context/AuthContext';
+
 
 const HomePage = () => {
+  const { user } = useAuth();
+
+
+  // Role-based default landing page
+  const roleLanding = {
+    admin: { to: "/system-monitoring", label: "Go to System Monitoring", icon: Activity },
+    manager: { to: "/dashboard", label: "Go to Dashboard", icon: LayoutDashboard },
+    inventory_manager: { to: "/products", label: "Go to Inventory", icon: Boxes },
+    cashier: { to: "/pos", label: "Go to POS Terminal", icon: MonitorSmartphone },
+  };
+  const landing = user ? roleLanding[user.role] : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex flex-col items-center justify-center relative">
@@ -28,13 +42,22 @@ const HomePage = () => {
           Your business management solution.
         </p>
 
-        {/* Login Button */}
-        <Link 
-          to="/login" 
-          className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-lg"
-        >
-          Sign In
-        </Link>
+        {/* Minimal: just one button for user's default landing page, or sign in */}
+        {user && landing ? (
+          <Link
+            to={landing.to}
+            className="inline-flex items-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-lg text-lg"
+          >
+            <landing.icon size={22} /> {landing.label}
+          </Link>
+        ) : (
+          <Link 
+            to="/login" 
+            className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-lg"
+          >
+            Sign In
+          </Link>
+        )}
       </div>
     </div>
   );
