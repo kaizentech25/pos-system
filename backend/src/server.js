@@ -15,14 +15,17 @@ const app = express();
 const PORT = process.env.PORT || 5001;
 const __dirname = path.resolve();
 
-// Middleware to parse JSON request bodies
-if (process.env.NODE_ENV !== 'production') {
-  app.use(
-    cors({
-      origin: 'http://localhost:5173',
-    })
-  );
-}
+const cors = require('cors');
+
+const allowedOrigins = [
+  'https://pos-system-six-sigma.vercel.app', // your Vercel frontend
+  // add other domains if needed
+];
+
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true, // if you use cookies/auth
+}));
 app.use(express.json());
 app.use(rateLimiter);
 
