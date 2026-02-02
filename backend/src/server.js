@@ -15,8 +15,6 @@ const app = express();
 const PORT = process.env.PORT || 5001;
 const __dirname = path.resolve();
 
-const cors = require('cors');
-
 const allowedOrigins = [
   'https://pos-system-six-sigma.vercel.app', // your Vercel frontend
   // add other domains if needed
