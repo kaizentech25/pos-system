@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 5001;
 const __dirname = path.resolve();
 
 const allowedOrigins = [
-  'https://kaizentech-pos-system.vercel.app/', // your Vercel frontend
+  'https://kaizentech-pos-system.vercel.app', // your Vercel frontend
   // add other domains if needed
 ];
 
